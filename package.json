@@ -1,0 +1,64 @@
+{
+  "name": "zhumora-studio",
+  "version": "0.1.0",
+  "description": "Local LLM studio: visual llama.cpp server manager (Electron + React)",
+  "main": "./out/main/index.js",
+  "author": "zhumora",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "test": "node --no-warnings --test \"tests/*.test.ts\"",
+    "build:win": "electron-vite build && electron-builder --win --x64",
+    "postinstall": "npx --yes cross-env ELECTRON_MIRROR=https://npmmirror.com/mirrors/electron/ node node_modules/electron/install.js"
+  },
+  "config": {
+    "electron_mirror": "https://npmmirror.com/mirrors/electron/"
+  },
+  "dependencies": {
+    "better-sqlite3": "^13.0.3",
+    "yauzl": "^3.3.1"
+  },
+  "devDependencies": {
+    "@electron-toolkit/utils": "^4.0.0",
+    "@types/better-sqlite3": "^9.6.0",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "@types/yauzl": "^3.4.0",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.4.1",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "typescript": "^5.9.3",
+    "vite": "^7.0.0",
+    "zustand": "^5.0.15"
+  },
+  "build": {
+    "appId": "com.zhumora.studio",
+    "productName": "Zhumora Studio",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "node_modules/yauzl/**/*",
+      "!node_modules/**/{README,readme,CHANGELOG,changelog,LICENSE,license,*.md,*.map,*.ts}/**"
+    ],
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "signExecutable": false
+    }
+  }
+}
