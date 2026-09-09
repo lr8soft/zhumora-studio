@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import { quantFromPath } from '@shared/hfutil'
 import type { HfCapabilities, HfModel, HfModelDetail, HfSort } from '@shared/types'
+import { useTranslation } from 'react-i18next'
 
 // ---------- 格式化 ----------
 function fmtSize(bytes: number): string {
@@ -20,27 +21,28 @@ function fmtCtx(n?: number): string {
   if (n >= 1024) return (n / 1024).toFixed(n % 1024 === 0 ? 0 : 1) + 'k'
   return String(n)
 }
-function relTime(iso?: string): string {
-  if (!iso) return ''
+type TFunc = (k: string, v?: Record<string, string | number>) => string
+function relTime(iso?: string, t?: TFunc): string {
+  if (!iso || !t) return ''
   const d = (Date.now() - new Date(iso).getTime()) / 86400000
-  if (d < 1) return '今天'
-  if (d < 30) return `${Math.floor(d)} 天前`
-  if (d < 365) return `${Math.floor(d / 30)} 个月前`
-  return `${Math.floor(d / 365)} 年前`
+  if (d < 1) return t('models.today')
+  if (d < 30) return t('models.daysAgo', { n: Math.floor(d) })
+  if (d < 365) return t('models.monthsAgo', { n: Math.floor(d / 30) })
+  return t('models.yearsAgo', { n: Math.floor(d / 365) })
 }
 const authorOf = (id: string) => id.split('/')[0]
 const shortName = (id: string) => id.split('/')[1] ?? id
 
-const CAPS: { key: keyof HfCapabilities; label: string; icon: string }[] = [
-  { key: 'vision', label: 'Vision', icon: '👁' },
-  { key: 'tool', label: 'Tool Use', icon: '🛠' },
-  { key: 'reasoning', label: 'Reasoning', icon: '🧠' }
+const CAPS: { key: keyof HfCapabilities; labelKey: string; icon: string }[] = [
+  { key: 'vision', labelKey: 'models.capVision', icon: '👁' },
+  { key: 'tool', labelKey: 'models.capTool', icon: '🛠' },
+  { key: 'reasoning', labelKey: 'models.capReasoning', icon: '🧠' }
 ]
-function capIcons(c: HfCapabilities): ReactNode {
+function capIcons(c: HfCapabilities, t: TFunc): ReactNode {
   return (
     <>
       {CAPS.filter((x) => c[x.key]).map((x) => (
-        <span key={x.key} className="cap-ico" title={x.label} style={{ marginLeft: 4 }}>
+        <span key={x.key} className="cap-ico" title={t(x.labelKey)} style={{ marginLeft: 4 }}>
           {x.icon}
         </span>
       ))}
@@ -86,19 +88,19 @@ function parseBlocks(md: string): Block[] {
       continue
     }
     if (/^\s*[-*+]\s+/.test(line)) {
-      const t = stripInline(line.replace(/^\s*[-*+]\s+/, ''))
-      if (t) out.push({ type: 'li', text: t })
+      const txt = stripInline(line.replace(/^\s*[-*+]\s+/, ''))
+      if (txt) out.push({ type: 'li', text: txt })
       continue
     }
     if (/^\s*\d+\.\s+/.test(line)) {
-      const t = stripInline(line.replace(/^\s*\d+\.\s+/, ''))
-      if (t) out.push({ type: 'li', text: t })
+      const txt = stripInline(line.replace(/^\s*\d+\.\s+/, ''))
+      if (txt) out.push({ type: 'li', text: txt })
       continue
     }
     if (/^\s*\|.*\|\s*$/.test(line)) continue // 表格：跳过
     if (/^\s*<[^>]+>/.test(line)) continue // 原始 HTML：跳过
-    const t = stripInline(line)
-    if (t) out.push({ type: 'p', text: t })
+    const txt = stripInline(line)
+    if (txt) out.push({ type: 'p', text: txt })
   }
   return out
 }
@@ -138,7 +140,8 @@ function DownloadRow({
   size,
   downloaded,
   dl,
-  onDownload
+  onDownload,
+  t
 }: {
   repoId: string
   path: string
@@ -146,6 +149,7 @@ function DownloadRow({
   downloaded: boolean
   dl?: { status: 'downloading' | 'error'; done: number; total: number; message?: string }
   onDownload: () => void
+  t: TFunc
 }) {
   const base = path.split('/').pop() ?? path
   const quant = quantFromPath(path)
@@ -162,18 +166,19 @@ function DownloadRow({
       {dl ? (
         dl.status === 'error' ? (
           <span className="dl-err" title={dl.message}>
-            失败 · {(dl.message ?? '').slice(0, 14)}
+            {t('models.fail', { msg: (dl.message ?? '').slice(0, 14) })}
           </span>
         ) : (
           <button className="btn btn-sm" onClick={() => void window.zhumora.models.cancelDownload(`${repoId}::${path}`)}>
-            {pct > 0 ? pct.toFixed(0) + '% ' : ''}取消
+            {pct > 0 ? pct.toFixed(0) + '% ' : ''}
+            {t('models.cancel')}
           </button>
         )
       ) : downloaded ? (
-        <span className="dl-done">✓ 已下载</span>
+        <span className="dl-done">{t('models.downloaded')}</span>
       ) : (
         <button className="btn btn-sm btn-primary" onClick={onDownload}>
-          下载
+          {t('models.download')}
         </button>
       )}
       {dl && dl.status === 'downloading' && (
@@ -187,6 +192,7 @@ function DownloadRow({
 
 // ---------- 主视图 ----------
 export default function ModelsView() {
+  const { t } = useTranslation()
   const models = useAppStore((s) => s.models)
   const downloads = useAppStore((s) => s.downloads)
   const loadModels = useAppStore((s) => s.loadModels)
@@ -254,7 +260,7 @@ export default function ModelsView() {
   }, [results])
 
   const isTrending = query.trim() === '' && sort === 'best'
-  const listLabel = isTrending ? '精选模型' : `搜索结果 · ${results.length}`
+  const listLabel = isTrending ? t('models.trending') : t('models.results', { n: String(results.length) })
 
   const importedNames = useMemo(() => {
     const set = new Set<string>()
@@ -267,7 +273,7 @@ export default function ModelsView() {
     await loadModels()
   }
   const removeModel = async (id: string) => {
-    if (!window.confirm('删除该模型文件？')) return
+    if (!window.confirm(t('models.confirmDelete'))) return
     await window.zhumora.models.remove(id)
     await loadModels()
   }
@@ -281,15 +287,15 @@ export default function ModelsView() {
     <div className="view">
       <div className="view-header">
         <div>
-          <h2>模型广场</h2>
-          <p>发现、浏览并下载 HuggingFace 上的 GGUF 模型，支持断点续传</p>
+          <h2>{t('models.title')}</h2>
+          <p>{t('models.desc')}</p>
         </div>
         <div className="header-actions">
           <button className="btn" onClick={() => void importModel()}>
-            导入本地 GGUF…
+            {t('models.import')}
           </button>
           <button className="btn btn-ghost" onClick={() => void loadModels()}>
-            重新扫描
+            {t('models.rescan')}
           </button>
         </div>
       </div>
@@ -302,7 +308,7 @@ export default function ModelsView() {
             <div className="market-search-row">
               <input
                 type="text"
-                placeholder="在 Hugging Face 上搜索模型…"
+                placeholder={t('models.searchIn')}
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && void runSearch(query, sort)}
@@ -314,18 +320,18 @@ export default function ModelsView() {
                   setSort(s)
                   void runSearch(query, s)
                 }}
-                title="排序"
+                title={t('models.sort')}
               >
-                <option value="best">最佳匹配</option>
-                <option value="likes">最多点赞</option>
-                <option value="updated">最新更新</option>
+                <option value="best">{t('models.sortBest')}</option>
+                <option value="likes">{t('models.sortLikes')}</option>
+                <option value="updated">{t('models.sortUpdated')}</option>
               </select>
               <button className="btn btn-primary btn-sm" onClick={() => void runSearch(query, sort)} disabled={searching}>
-                {searching ? '…' : '搜索'}
+                {searching ? '…' : t('models.search')}
               </button>
             </div>
             <div className="market-list-label">
-              {isTrending && <span className="market-refresh" title="刷新" onClick={() => void runSearch('', sort)}>↻</span>}
+              {isTrending && <span className="market-refresh" title={t('models.refresh')} onClick={() => void runSearch('', sort)}>↻</span>}
               {listLabel}
             </div>
           </div>
@@ -333,9 +339,9 @@ export default function ModelsView() {
           <div className="market-rows">
             {searchError && <div className="status-error" style={{ margin: '0 8px 8px' }}>{searchError}</div>}
             {!searching && results.length === 0 && (
-              <div className="hint" style={{ padding: 16 }}>无结果，换个关键词试试</div>
+              <div className="hint" style={{ padding: 16 }}>{t('models.noResults')}</div>
             )}
-            {searching && results.length === 0 && <div className="hint" style={{ padding: 16 }}>搜索中…</div>}
+            {searching && results.length === 0 && <div className="hint" style={{ padding: 16 }}>{t('models.searching')}</div>}
             {results.map((m) => (
               <button
                 key={m.id}
@@ -348,16 +354,16 @@ export default function ModelsView() {
                   ) : (
                     <span>{shortName(m.id).charAt(0).toUpperCase()}</span>
                   )}
-                  {m.capabilities.vision && <span className="mrow-vision" title="视觉">👁</span>}
+                  {m.capabilities.vision && <span className="mrow-vision" title={t('models.vision')}>👁</span>}
                 </div>
                 <div className="mrow-main">
                   <div className="mrow-name">
                     {shortName(m.id)}
-                    {m.gated && <span className="mrow-locked" title="受限仓库">🔒</span>}
-                    {capIcons(m.capabilities)}
+                    {m.gated && <span className="mrow-locked" title={t('models.gated')}>🔒</span>}
+                    {capIcons(m.capabilities, t)}
                   </div>
                   <div className="mrow-sub">
-                    {[authorOf(m.id), m.params, `⬇ ${fmtDownloads(m.downloads)}`, relTime(m.lastModified)]
+                    {[authorOf(m.id), m.params, `⬇ ${fmtDownloads(m.downloads)}`, relTime(m.lastModified, t)]
                       .filter(Boolean)
                       .join('  ·  ')}
                   </div>
@@ -378,7 +384,7 @@ export default function ModelsView() {
                         {dl.file}
                       </span>
                       <button className="dl-cancel" onClick={() => void window.zhumora.models.cancelDownload(dl.id)}>
-                        取消
+                        {t('models.cancel')}
                       </button>
                     </div>
                     <div className="progress" style={{ height: 5 }}>
@@ -400,7 +406,7 @@ export default function ModelsView() {
             <div className="empty-state" style={{ flex: 1 }}>
               <div>
                 <div className="mark">🔍</div>
-                从左侧选择一个模型查看详情
+                {t('models.detailPick')}
               </div>
             </div>
           )}
@@ -409,7 +415,7 @@ export default function ModelsView() {
             <div className="empty-state" style={{ flex: 1 }}>
               <div>
                 <div className="mark" style={{ animation: 'pulse 1.2s infinite' }}>⏳</div>
-                正在解析模型详情…
+                {t('models.detailLoading')}
               </div>
             </div>
           )}
@@ -437,7 +443,7 @@ export default function ModelsView() {
                 <div className="detail-title-wrap" style={{ flex: 1, minWidth: 0 }}>
                   <div className="detail-title">
                     {detailModel.id}
-                    {detailModel.gated && <span className="mrow-locked" title="受限仓库">🔒</span>}
+                    {detailModel.gated && <span className="mrow-locked" title={t('models.gated')}>🔒</span>}
                   </div>
                   <div className="mrow-sub">
                     {[authorOf(detailModel.id), detailModel.pipelineTag].filter(Boolean).join(' · ')}
@@ -451,7 +457,7 @@ export default function ModelsView() {
                   }}
                   href={`https://huggingface.co/${detailModel.id}`}
                 >
-                  在 HF 打开 ↗
+                  {t('models.openHf')}
                 </a>
               </div>
 
@@ -460,22 +466,22 @@ export default function ModelsView() {
                 <div className="dstat">
                   <span className="dstat-ico">⬇</span>
                   <strong>{fmtDownloads(detailModel.downloads)}</strong>
-                  <span>下载</span>
+                  <span>{t('models.downloads')}</span>
                 </div>
                 <div className="dstat">
                   <span className="dstat-ico">★</span>
                   <strong>{fmtDownloads(detailModel.likes)}</strong>
-                  <span>点赞</span>
+                  <span>{t('models.likes')}</span>
                 </div>
                 <div className="dstat">
                   <span className="dstat-ico">🕘</span>
-                  <strong>{relTime(detailModel.lastModified) || '—'}</strong>
-                  <span>更新</span>
+                  <strong>{relTime(detailModel.lastModified, t) || '—'}</strong>
+                  <span>{t('models.updated')}</span>
                 </div>
                 {isTrending && detailModel.id === results[0]?.id && (
                   <div className="dstat dstat-badge">
                     <span className="dstat-ico">⭐</span>
-                    <span>精选</span>
+                    <span>{t('models.picked')}</span>
                   </div>
                 )}
               </div>
@@ -484,11 +490,11 @@ export default function ModelsView() {
 
               {/* 元信息 chips */}
               <div className="detail-meta">
-                <Meta label="参数" value={detailModel.params} />
-                <Meta label="架构" value={detailModel.arch} mono />
-                <Meta label="上下文" value={fmtCtx(detailModel.contextLength)} mono />
-                <Meta label="格式" value="GGUF" mono />
-                <Meta label="许可" value={detailModel.license} mono />
+                <Meta label={t('models.params')} value={detailModel.params} />
+                <Meta label={t('models.arch')} value={detailModel.arch} mono />
+                <Meta label={t('models.context')} value={fmtCtx(detailModel.contextLength)} mono />
+                <Meta label={t('models.format')} value="GGUF" mono />
+                <Meta label={t('models.license')} value={detailModel.license} mono />
               </div>
 
               {/* 能力 */}
@@ -497,7 +503,7 @@ export default function ModelsView() {
                   {CAPS.filter((c) => detailModel.capabilities[c.key]).map((c) => (
                     <span key={c.key} className="cap-chip">
                       <span className="cap-dot" />
-                      {c.label}
+                      {t(c.labelKey)}
                     </span>
                   ))}
                 </div>
@@ -505,7 +511,7 @@ export default function ModelsView() {
 
               {/* 下载选项 */}
               <div className="detail-section">
-                <div className="detail-section-title">下载选项</div>
+                <div className="detail-section-title">{t('models.dlOptions')}</div>
                 {detail.files.length > 0 ? (
                   <div className="dl-list">
                     {detail.files.map((f) => (
@@ -517,15 +523,16 @@ export default function ModelsView() {
                         downloaded={importedNames.has(f.path.split('/').pop()?.toLowerCase() ?? '')}
                         dl={downloads[`${detailModel.id}::${f.path}`]}
                         onDownload={() => void window.zhumora.models.download(detailModel.id, f.path).catch(() => {})}
+                        t={t}
                       />
                     ))}
                   </div>
                 ) : detailModel.gated ? (
                   <div className="hint" style={{ padding: '12px 0' }}>
-                    该仓库为受限（gated）仓库，请先在 Hugging Face 上授权后，再用“导入本地 GGUF”或直接下载。
+                    {t('models.gatedHint')}
                   </div>
                 ) : (
-                  <div className="hint" style={{ padding: '12px 0' }}>该仓库没有可下载的 GGUF 文件。</div>
+                  <div className="hint" style={{ padding: '12px 0' }}>{t('models.noGguf')}</div>
                 )}
               </div>
 
@@ -545,9 +552,12 @@ export default function ModelsView() {
       <div className="card" style={{ marginTop: 14 }}>
         <div className="card-head">
           <h3>
-            本地模型
+            {t('models.local')}
             <span className="sub">
-              {list.length} 个模型{mmprojs.length > 0 ? ` · ${mmprojs.length} 个 mmproj` : ''}
+              {t('models.localSub', {
+                n: String(list.length),
+                mm: mmprojs.length > 0 ? t('models.localSubMm', { n: String(mmprojs.length) }) : ''
+              })}
             </span>
           </h3>
         </div>
@@ -555,18 +565,18 @@ export default function ModelsView() {
           <div className="empty-state" style={{ flex: 'none', padding: 32 }}>
             <div>
               <div className="mark">🗂</div>
-              模型库为空 — 在上方广场搜索下载，或导入本地 .gguf
+              {t('models.empty')}
             </div>
           </div>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th style={{ width: '36%' }}>名称</th>
-                <th>类型</th>
-                <th>架构</th>
-                <th>量化</th>
-                <th>大小</th>
+                <th style={{ width: '36%' }}>{t('models.thName')}</th>
+                <th>{t('models.thKind')}</th>
+                <th>{t('models.thArch')}</th>
+                <th>{t('models.thQuant')}</th>
+                <th>{t('models.thSize')}</th>
                 <th style={{ width: 70 }}></th>
               </tr>
             </thead>
@@ -587,7 +597,7 @@ export default function ModelsView() {
                   <td>
                     <div className="cell-actions">
                       <button className="btn btn-sm btn-danger" onClick={() => void removeModel(m.id)}>
-                        删除
+                        {t('models.delete')}
                       </button>
                     </div>
                   </td>

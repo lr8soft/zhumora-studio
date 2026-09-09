@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useAppStore } from '../store'
-import type { Settings } from '@shared/types'
+import { useTranslation } from 'react-i18next'
+import { SUPPORTED_LANGUAGES, applyLanguage, type AppLanguage } from '../i18n'
+import type { AppLang, Settings } from '@shared/types'
 
 export default function SettingsView() {
+  const { t } = useTranslation()
   const settings = useAppStore((s) => s.settings)
   const setSettings = useAppStore((s) => s.setSettings)
   const [draft, setDraft] = useState<Partial<Settings>>({})
@@ -37,81 +40,110 @@ export default function SettingsView() {
     await window.zhumora.system.openPath(settings?.modelsDir ?? '')
   }
 
+  /** 语言：即时生效（i18n + localStorage），同时持久化到 settings（只存 lang，不连带草稿） */
+  const changeLang = (lang: AppLanguage) => {
+    applyLanguage(lang)
+    void window.zhumora.settings.save({ lang: lang as AppLang }).then((next) => {
+      useAppStore.getState().setSettings(next)
+      setDraft((d) => {
+        const rest = { ...d }
+        delete rest.lang
+        return rest
+      })
+    })
+  }
+
   return (
     <div className="view">
       <div className="view-header">
         <div>
-          <h2>设置</h2>
-          <p>模型目录 / llama-server 二进制 / 外观</p>
+          <h2>{t('settings.title')}</h2>
+          <p>{t('settings.desc')}</p>
         </div>
         <div className="header-actions">
-          {saved && <span className="badge badge-ready">已保存</span>}
+          {saved && <span className="badge badge-ready">{t('settings.saved')}</span>}
           <button className="btn btn-primary" onClick={() => void save()}>
-            保存设置
+            {t('settings.save')}
           </button>
         </div>
       </div>
 
+      {/* 语言 */}
       <div className="card">
-        <div className="card-head"><h3>模型目录</h3></div>
+        <div className="card-head"><h3>{t('settings.language')}</h3></div>
+        <div className="card-body" style={{ display: 'grid', gap: 10 }}>
+          <select
+            className="field-input"
+            style={{ maxWidth: 280 }}
+            value={String(val('lang'))}
+            onChange={(e) => changeLang(e.target.value as AppLanguage)}
+          >
+            {SUPPORTED_LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.code === 'auto' ? t('settings.autoDetect') : l.nativeLabel}
+              </option>
+            ))}
+          </select>
+          <div className="hint">{t('settings.languageHint')}</div>
+        </div>
+      </div>
+
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="card-head"><h3>{t('settings.modelsDir')}</h3></div>
         <div className="card-body" style={{ display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text"
-              className="mono"
-              style={{ flex: 1, minHeight: 32, padding: '5px 10px', border: '1px solid var(--app-color-border)', borderRadius: 6, background: 'var(--app-color-surface)' }}
+              className="field-input mono"
+              style={{ flex: 1 }}
               value={String(val('modelsDir'))}
               onChange={(e) => setDraft((d) => ({ ...d, modelsDir: e.target.value }))}
             />
-            <button className="btn" onClick={() => void pickDir()}>浏览…</button>
-            <button className="btn btn-ghost" onClick={() => void openModelsDir()}>打开</button>
+            <button className="btn" onClick={() => void pickDir()}>{t('settings.browse')}</button>
+            <button className="btn btn-ghost" onClick={() => void openModelsDir()}>{t('settings.open')}</button>
           </div>
-          <div className="hint" style={{ fontSize: '0.733rem', color: 'var(--app-color-text-mute)' }}>
-            导入的 .gguf 会复制到此目录；更换后到"模型库"页重新扫描
-          </div>
+          <div className="hint">{t('settings.modelsDirHint')}</div>
         </div>
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
         <div className="card-head">
-          <h3>llama-server 二进制</h3>
-          <span className="sub">留空 = 使用"运行时"页下载的构建</span>
+          <h3>{t('settings.binary')}</h3>
+          <span className="sub">{t('settings.binarySub')}</span>
         </div>
         <div className="card-body" style={{ display: 'grid', gap: 10 }}>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
               type="text"
-              className="mono"
-              style={{ flex: 1, minHeight: 32, padding: '5px 10px', border: '1px solid var(--app-color-border)', borderRadius: 6, background: 'var(--app-color-surface)' }}
+              className="field-input mono"
+              style={{ flex: 1 }}
               value={String(val('llamaBinary'))}
-              placeholder="（空 = 自动使用已下载 runtime）"
+              placeholder={t('settings.binaryPh')}
               onChange={(e) => setDraft((d) => ({ ...d, llamaBinary: e.target.value }))}
             />
-            <button className="btn" onClick={() => void pickBinary()}>浏览…</button>
+            <button className="btn" onClick={() => void pickBinary()}>{t('settings.browse')}</button>
           </div>
-          <div style={{ fontSize: '0.733rem', color: 'var(--app-color-text-mute)', lineHeight: 1.5 }}>
-            离线环境或想用自定义 CUDA/Vulkan 构建时，在此指定 llama-server.exe 的完整路径，优先级高于自动下载的 runtime。
-          </div>
+          <div className="hint" style={{ lineHeight: 1.5 }}>{t('settings.binaryHint')}</div>
         </div>
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
-        <div className="card-head"><h3>外观</h3></div>
+        <div className="card-head"><h3>{t('settings.appearance')}</h3></div>
         <div className="card-body">
           <div className="form-row">
             <div className="field">
-              <label>主题</label>
+              <label>{t('settings.theme')}</label>
               <select
                 value={String(val('theme'))}
                 onChange={(e) => setDraft((d) => ({ ...d, theme: e.target.value as Settings['theme'] }))}
               >
-                <option value="system">跟随系统</option>
-                <option value="light">浅色</option>
-                <option value="dark">深色</option>
+                <option value="system">{t('settings.themeSystem')}</option>
+                <option value="light">{t('settings.themeLight')}</option>
+                <option value="dark">{t('settings.themeDark')}</option>
               </select>
             </div>
             <div className="field">
-              <label>字体大小（px）</label>
+              <label>{t('settings.fontSize')}</label>
               <select
                 value={String(val('fontSize'))}
                 onChange={(e) => setDraft((d) => ({ ...d, fontSize: Number(e.target.value) }))}
@@ -126,12 +158,11 @@ export default function SettingsView() {
       </div>
 
       <div className="card" style={{ marginTop: 14 }}>
-        <div className="card-head"><h3>关于</h3></div>
+        <div className="card-head"><h3>{t('settings.about')}</h3></div>
         <div className="card-body" style={{ fontSize: '0.8rem', color: 'var(--app-color-text-soft)', lineHeight: 1.7 }}>
-          <p>Zhumora Studio v0.1.0 — 本地 LLM 工作室（llama.cpp server 可视化封装）</p>
+          <p>{t('settings.aboutLine1')}</p>
           <p>
-            server 启动后提供 OpenAI 兼容端点（<span className="mono">/v1/chat/completions</span> 等），
-            地址与 API key 见"服务与参数"页状态卡，可复制给外部应用接入。
+            {t('settings.aboutLine2')}
           </p>
         </div>
       </div>

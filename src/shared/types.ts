@@ -26,6 +26,8 @@ export interface ParamSpec {
   fullWidth?: boolean
   /** 输入用等宽字体 */
   mono?: boolean
+  /** 不进表单渲染（仍参与 buildArgs 序列化），如 apiKey 由“密钥”页注入 */
+  hidden?: boolean
 }
 
 /** 启动参数值表：key 与 ParamSpec.key 对应。extraArgs 为透传原始参数。 */
@@ -188,6 +190,8 @@ export interface ChatMessage {
   content: string
   usage?: { prompt: number; completion: number }
   tokensPerSec?: number
+  /** 产生该回复的模型（文件路径），用量统计按此归组 */
+  modelId?: string
   createdAt: number
 }
 
@@ -233,6 +237,43 @@ export interface ChatErrorEvent {
 
 // ---------- settings ----------
 
+export type AppLang = 'auto' | 'en' | 'zh' | 'ja' | 'es' | 'fr' | 'de'
+
+// ---------- 密钥管理 ----------
+
+export interface ApiKeyInfo {
+  id: string
+  name: string
+  key: string
+  createdAt: number
+}
+
+// ---------- 用量统计 ----------
+
+export interface UsageSummary {
+  requests: number
+  prompt: number
+  completion: number
+  total: number
+}
+
+export interface UsageDaily {
+  /** YYYY-MM-DD（本地时区） */
+  day: string
+  requests: number
+  prompt: number
+  completion: number
+}
+
+export interface UsageModel {
+  modelId: string
+  requests: number
+  prompt: number
+  completion: number
+  total: number
+  avgTps?: number
+}
+
 export interface Settings {
   schemaVersion: number
   modelsDir: string
@@ -245,4 +286,5 @@ export interface Settings {
   lastParams: LaunchParams
   theme: 'light' | 'dark' | 'system'
   fontSize: number
+  lang: AppLang
 }

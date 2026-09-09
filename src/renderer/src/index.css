@@ -93,6 +93,16 @@ h1, h2, h3, p { margin: 0; }
 .side-nav button.active .nav-dot { background: var(--app-color-primary); }
 .nav-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--app-color-border-strong); flex: 0 0 auto; transition: background 0.15s; }
 .side-footer { margin-top: auto; padding: 10px 8px 0; display: grid; gap: 6px; }
+/* 接口地址（URL）行：点一下复制 */
+.side-url {
+  display: grid; grid-template-columns: auto 1fr; gap: 2px 8px; align-items: center;
+  padding: 8px 10px; border: 1px solid var(--app-color-border); border-radius: 6px;
+  background: var(--app-color-surface); cursor: pointer; text-align: left; transition: border-color 0.12s, background 0.12s;
+}
+.side-url:hover { border-color: var(--app-color-primary); background: var(--app-color-primary-soft); }
+.side-url .url-label { grid-row: 1 / 3; color: var(--app-color-text-mute); font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; white-space: nowrap; }
+.side-url .url-value { font-size: 0.733rem; color: var(--app-color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 .server-pill { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 6px; background: var(--app-muted-bg); font-size: 0.733rem; color: var(--app-color-text-soft); }
 .server-pill .dot { width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto; }
 .dot-stopped { background: var(--app-color-text-mute); }
@@ -135,7 +145,26 @@ h1, h2, h3, p { margin: 0; }
 .card-body { padding: 16px; }
 .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
-@media (max-width: 1200px) { .grid-2, .grid-3 { grid-template-columns: 1fr; } }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 1200px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 900px) { .grid-4 { grid-template-columns: 1fr; } }
+
+/* ---------- 统计卡（用量页） ---------- */
+.stat-card { display: grid; gap: 4px; padding: 14px 16px; background: var(--app-color-surface); border: 1px solid var(--app-color-border); border-radius: var(--app-radius-md); }
+.stat-card.accent { border-color: color-mix(in srgb, var(--app-color-primary) 45%, transparent); background: var(--app-color-primary-soft); }
+.stat-card .stat-label { color: var(--app-color-text-mute); font-size: 0.733rem; font-weight: 650; }
+.stat-card .stat-value { font-size: 1.3rem; font-weight: 700; }
+.stat-card.accent .stat-value { color: var(--app-color-primary-strong); }
+
+/* ---------- 用量日柱图 ---------- */
+.usage-bars { display: flex; align-items: flex-end; gap: 6px; height: 130px; padding-top: 8px; }
+.usage-bar-wrap { flex: 1; min-width: 0; display: grid; justify-items: center; align-content: end; gap: 6px; height: 100%; }
+.usage-bar { width: 100%; max-width: 34px; border-radius: 4px 4px 2px 2px; background: var(--app-color-border); }
+.usage-bar.on { background: var(--app-color-primary); }
+.usage-bar-label { color: var(--app-color-text-mute); font-size: 0.65rem; }
+
+/* ---------- 密钥页 ---------- */
+.keys-add { display: flex; gap: 8px; align-items: center; }
 
 /* ---------- 表单 ---------- */
 .field { display: grid; gap: 5px; min-width: 0; }
@@ -149,6 +178,14 @@ h1, h2, h3, p { margin: 0; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--app-color-primary); }
 .field textarea { min-height: 64px; resize: vertical; line-height: 1.45; }
 .field input:disabled, .field select:disabled { opacity: 0.6; cursor: not-allowed; }
+/* 独立输入框（非 .field 包裹时用） */
+.field-input {
+  min-height: 32px; padding: 5px 10px; border: 1px solid var(--app-color-border);
+  border-radius: 6px; background: var(--app-color-surface); font-size: 0.833rem; color: var(--app-color-text); outline: none;
+  transition: border-color 0.12s; width: 100%;
+}
+.field-input:focus { border-color: var(--app-color-primary); }
+.field-input.mono { font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.767rem; }
 .field .pick { display: flex; gap: 8px; align-items: stretch; }
 .field .pick > select, .field .pick > input { flex: 1; min-width: 0; min-height: 34px; }
 .hint-link { border: 0; background: transparent; padding: 0 2px; font: inherit; color: var(--app-color-primary-strong); cursor: pointer; text-decoration: underline; }

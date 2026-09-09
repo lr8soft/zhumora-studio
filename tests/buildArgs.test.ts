@@ -60,7 +60,7 @@ test('paramsEqual: key 顺序无关，值相关', () => {
   assert.ok(!paramsEqual(a as never, b as never))
 })
 
-test('sanitizeParams: secret 参数脱敏', () => {
+test('sanitizeParams: secret 参数脱敏（apiKey）', () => {
   const p = defaultParams()
   p.apiKey = 'sk-123,sk-456'
   const s = sanitizeParams(p)

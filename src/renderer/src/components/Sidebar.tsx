@@ -1,16 +1,20 @@
 import { useAppStore } from '../store'
+import { useTranslation } from 'react-i18next'
 
-export type ViewId = 'runtime' | 'models' | 'server' | 'chat' | 'settings'
+export type ViewId = 'runtime' | 'models' | 'server' | 'chat' | 'keys' | 'usage' | 'settings'
 
-const NAV: { id: ViewId; label: string }[] = [
-  { id: 'runtime', label: '运行时' },
-  { id: 'models', label: '模型广场' },
-  { id: 'server', label: '服务与参数' },
-  { id: 'chat', label: '对话' },
-  { id: 'settings', label: '设置' }
+const NAV: { id: ViewId; labelKey: string }[] = [
+  { id: 'runtime', labelKey: 'sidebar.runtime' },
+  { id: 'models', labelKey: 'sidebar.models' },
+  { id: 'server', labelKey: 'sidebar.server' },
+  { id: 'chat', labelKey: 'sidebar.chat' },
+  { id: 'keys', labelKey: 'sidebar.keys' },
+  { id: 'usage', labelKey: 'sidebar.usage' },
+  { id: 'settings', labelKey: 'sidebar.settings' }
 ]
 
 export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate: (v: ViewId) => void }) {
+  const { t } = useTranslation()
   const serverState = useAppStore((s) => s.serverState)
   const runtime = useAppStore((s) => s.runtime)
 
@@ -26,18 +30,29 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
     runtime.state === 'ready'
       ? `llama ${runtime.version ?? ''} · ${runtime.variant ?? ''}`
       : runtime.state === 'downloading'
-        ? 'llama.cpp 下载中…'
+        ? t('sidebar.downloading')
         : runtime.state === 'error'
-          ? '运行时错误'
-          : '运行时未就绪'
+          ? t('sidebar.error')
+          : t('sidebar.notReady')
+
+  const url = serverState.host ? `http://${serverState.host}:${serverState.port}` : ''
+
+  const copyUrl = async () => {
+    if (!url) return
+    try {
+      await navigator.clipboard.writeText(url)
+    } catch {
+      // 忽略
+    }
+  }
 
   return (
     <aside className="sidebar">
       <div className="brand">
         <div className="brand-mark">Z</div>
         <div>
-          <strong>Zhumora Studio</strong>
-          <small>本地 LLM 工作室</small>
+          <strong>{t('app.name')}</strong>
+          <small>{t('app.sub')}</small>
         </div>
       </div>
       <nav className="side-nav">
@@ -63,12 +78,23 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
               onClick={() => onNavigate(item.id)}
             >
               <span className={activeDot ?? 'nav-dot'} style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block', background: activeDot ? 'currentColor' : undefined }} />
-              {item.label}
+              {t(item.labelKey)}
             </button>
           )
         })}
       </nav>
       <div className="side-footer">
+        {/* 接口地址（URL）— 点一下复制 */}
+        {url && (
+          <button
+            className="side-url"
+            title={`${t('sidebar.url')}: ${url}/v1`}
+            onClick={() => void copyUrl()}
+          >
+            <span className="url-label">{t('sidebar.url')}</span>
+            <span className="url-value mono">{url}</span>
+          </button>
+        )}
         <div className="server-pill">
           <span
             className={`dot ${
@@ -84,7 +110,7 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
           <span style={{ minWidth: 0 }}>
             {serverState.state === 'ready' ? (
               <>
-                server 运行中
+                {t('sidebar.ready')}
                 <br />
                 <span className="mono">
                   {serverState.host}:{serverState.port}

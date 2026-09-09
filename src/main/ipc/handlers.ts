@@ -10,6 +10,8 @@ import { SettingsStore } from '../settings/store'
 import { openDatabase } from '../store/db'
 import { ModelsRepo } from '../store/modelsRepo'
 import { ChatRepo } from '../store/chatRepo'
+import { KeysRepo } from '../store/keysRepo'
+import { UsageRepo } from '../store/usageRepo'
 import { scanModelsDir } from '../models/scanner'
 import { ServerManager } from '../server/ServerManager'
 import { ChatProxy } from '../chat/ChatProxy'
@@ -43,6 +45,8 @@ export interface AppContext {
   settings: SettingsStore
   models: ModelsRepo
   chat: ChatRepo
+  keys: KeysRepo
+  usage: UsageRepo
   server: ServerManager
   chatProxy: ChatProxy
   runtime: RuntimeManager
@@ -50,8 +54,14 @@ export interface AppContext {
   send: (channel: string, payload: unknown) => void
 }
 
+/** 密钥表 → 注入 ChatProxy 的 Authorization（启动/增删密钥后调用） */
+function syncProxyKey(ctx: AppContext): void {
+  const ks = ctx.keys.activeKeys()
+  ctx.chatProxy.setApiKey(ks.length > 0 ? ks[0] : undefined)
+}
+
 export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWindow | null): void {
-  const { settings, models, chat, server, chatProxy, runtime, modelDownloader, send } = ctx
+  const { settings, models, chat, keys, usage, server, chatProxy, runtime, modelDownloader, send } = ctx
 
   // 接线事件 → renderer（事件通道用 IpcEvent，不是 invoke 的 Ipc）
   server.onState((s) => send(IpcEvent.serverState, s))
@@ -145,10 +155,12 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   ipcMain.handle(Ipc.serverState, async () => server.getState())
   ipcMain.handle(Ipc.serverStart, async (_e, rawParams: unknown) => {
     const params = validateParams(rawParams)
+    // 密钥管理页的 key 注入 --api-key（逗号分隔，任一可用）
+    const ks = keys.activeKeys()
+    if (ks.length > 0) params.apiKey = ks.join(',')
     await server.start(params, runtime.getStatus().binaryPath)
-    // 启动后注入 API key（若设置了）
-    const key = params.apiKey
-    chatProxy.setApiKey(typeof key === 'string' && key ? key.split(',')[0].trim() : undefined)
+    // 启动后注入 API key（ChatProxy 调用本地 server 用）
+    syncProxyKey(ctx)
     settings.save({ lastParams: params })
   })
   ipcMain.handle(Ipc.serverStop, async () => server.stop())
@@ -202,12 +214,41 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
 
   // ---------- settings ----------
   ipcMain.handle(Ipc.settingsGet, async () => settings.get())
-  ipcMain.handle(Ipc.settingsSave, async (_e, patch: Partial<Settings>) => settings.save(patch))
+  ipcMain.handle(Ipc.settingsSave, async (_e, patch: Partial<Settings>) => {
+    const next = settings.save(patch)
+    return next
+  })
 
   // ---------- chat:save-message（renderer 校准用，demo 预留） ----------
   ipcMain.handle(Ipc.chatSaveMessage, async (_e, sessionId: string, message: ChatMessage) => {
     chat.saveMessage(sessionId, message)
   })
+
+  // ---------- 密钥管理 ----------
+  ipcMain.handle(Ipc.keysList, async () => keys.list())
+  ipcMain.handle(Ipc.keysAdd, async (_e, name: unknown, key: unknown) => {
+    const n = typeof name === 'string' ? name.trim().slice(0, 60) : ''
+    const k = typeof key === 'string' ? key.trim() : ''
+    if (k.length < 4) throw new Error('KEY_TOO_SHORT')
+    if (keys.list().some((x) => x.key === k)) throw new Error('KEY_EXISTS')
+    keys.add(n, k)
+    syncProxyKey(ctx)
+    return keys.list()
+  })
+  ipcMain.handle(Ipc.keysRemove, async (_e, id: string) => {
+    if (typeof id === 'string') keys.remove(id)
+    syncProxyKey(ctx)
+    return keys.list()
+  })
+
+  // ---------- 用量统计 ----------
+  ipcMain.handle(Ipc.usageSummary, async () => usage.summary())
+  ipcMain.handle(Ipc.usageDaily, async (_e, days?: number) => {
+    const d = typeof days === 'number' && days >= 1 && days <= 90 ? days : 14
+    return usage.daily(d)
+  })
+  ipcMain.handle(Ipc.usageByModel, async () => usage.byModel())
+  ipcMain.handle(Ipc.usageReset, async () => usage.clear())
 
   // ---------- system ----------
   ipcMain.handle(Ipc.systemPickModel, async () => {
@@ -264,12 +305,10 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   ipcMain.handle(Ipc.windowClose, () => getWindow()?.close())
 }
 
-/** 启动时恢复：runtime 自检 + server 状态（stopped） */
+/** 启动时恢复：runtime 自检 + server 状态（stopped）+ 密钥同步到 ChatProxy */
 export function bootSequence(ctx: AppContext): void {
-  const { settings, server, runtime, chatProxy } = ctx
+  const { settings, server, runtime } = ctx
   void runtime.check()
-  // 恢复 API key（上次启动参数里有的话）
-  const last = settings.get().lastParams
-  const key = last?.apiKey
-  chatProxy.setApiKey(typeof key === 'string' && key ? key.split(',')[0].trim() : undefined)
+  // 恢复 API key（密钥管理表为准）
+  syncProxyKey(ctx)
 }

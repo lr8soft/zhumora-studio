@@ -159,6 +159,7 @@ export class ChatProxy {
       content,
       usage,
       tokensPerSec,
+      modelId: this.getServerState().modelPath,
       createdAt: Date.now()
     }
     this.chatRepo.saveMessage(session.id, msg)

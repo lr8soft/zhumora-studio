@@ -4,6 +4,8 @@ import { SettingsStore } from './settings/store'
 import { openDatabase } from './store/db'
 import { ModelsRepo } from './store/modelsRepo'
 import { ChatRepo } from './store/chatRepo'
+import { KeysRepo } from './store/keysRepo'
+import { UsageRepo } from './store/usageRepo'
 import { ServerManager } from './server/ServerManager'
 import { ChatProxy } from './chat/ChatProxy'
 import { RuntimeManager } from './runtime/RuntimeManager'
@@ -23,6 +25,8 @@ export function createAppServices(): AppServices {
   const db = openDatabase()
   const models = new ModelsRepo(db)
   const chat = new ChatRepo(db)
+  const keys = new KeysRepo(db)
+  const usage = new UsageRepo(db)
   const server = new ServerManager(() => settings.get())
   const chatProxy = new ChatProxy(chat, () => server.getState())
   const runtime = new RuntimeManager(join(app.getPath('userData'), 'llama'))
@@ -32,7 +36,7 @@ export function createAppServices(): AppServices {
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
   }
 
-  const ctx: AppContext = { settings, models, chat, server, chatProxy, runtime, modelDownloader, send }
+  const ctx: AppContext = { settings, models, chat, keys, usage, server, chatProxy, runtime, modelDownloader, send }
 
   const createWindow = (): BrowserWindow => {
     win = new BrowserWindow({

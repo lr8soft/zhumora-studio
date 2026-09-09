@@ -13,6 +13,8 @@ export function defaultParams(): LaunchParams {
 
 function serialize(spec: ParamSpec, value: number | string | boolean | undefined): string[] {
   if (value === undefined) return []
+  // flag 为空 = 纯 UI 参数（如 quant 过滤），不参与启动命令
+  if (!spec.flag) return []
   switch (spec.type) {
     case 'boolean':
       return value ? [spec.flag] : []

@@ -2,9 +2,11 @@ import { readFileSync, writeFileSync, mkdirSync } from 'fs'
 import { join, dirname } from 'path'
 import { app } from 'electron'
 import { defaultParams } from '@shared/buildArgs'
-import type { LaunchParams, Settings } from '@shared/types'
+import type { AppLang, LaunchParams, Settings } from '@shared/types'
 
 export const SETTINGS_SCHEMA_VERSION = 1
+
+const APP_LANGS: AppLang[] = ['auto', 'en', 'zh', 'ja', 'es', 'fr', 'de']
 
 /** 边界归一化：schemaVersion 补默认值，唯一入口 */
 export function normalizeSettings(raw: unknown): Settings {
@@ -21,7 +23,8 @@ export function normalizeSettings(raw: unknown): Settings {
     },
     lastParams: { ...defaultParams(), ...(r.lastParams as LaunchParams ?? {}) },
     theme: r.theme === 'light' || r.theme === 'dark' ? r.theme : 'system',
-    fontSize: typeof r.fontSize === 'number' && r.fontSize >= 13 && r.fontSize <= 18 ? r.fontSize : 15
+    fontSize: typeof r.fontSize === 'number' && r.fontSize >= 13 && r.fontSize <= 18 ? r.fontSize : 15,
+    lang: typeof r.lang === 'string' && (APP_LANGS as string[]).includes(r.lang) ? (r.lang as AppLang) : 'auto'
   }
 }
 

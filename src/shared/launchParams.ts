@@ -14,6 +14,17 @@ import type { ParamSpec } from './types.ts'
 export const LAUNCH_PARAMS: ParamSpec[] = [
   // ---------- service ----------
   {
+    key: 'apiKey',
+    flag: '--api-key',
+    label: 'API Keys',
+    category: 'service',
+    type: 'string',
+    default: '',
+    secret: true,
+    hidden: true,
+    hint: '由“密钥”页自动注入（逗号分隔多个）；留空 = 无鉴权'
+  },
+  {
     key: 'host',
     flag: '--host',
     label: '监听地址',
@@ -30,16 +41,6 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
     default: 1234,
     min: 1,
     max: 65535
-  },
-  {
-    key: 'apiKey',
-    flag: '--api-key',
-    label: 'API Keys',
-    category: 'service',
-    type: 'string',
-    default: '',
-    secret: true,
-    hint: '逗号分隔多个 key；留空 = 无鉴权（本机直连）'
   },
   {
     key: 'corsOrigins',
@@ -74,6 +75,15 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
     hint: '从模型库选择，或手动输入 .gguf 路径'
   },
   {
+    key: 'quant',
+    flag: '',
+    label: '量化',
+    category: 'model',
+    type: 'string',
+    default: '',
+    hint: '仅过滤模型库显示（不参与启动命令）；如 q4_k_m / q5_k_m / q8_0 / f16，留空 = 全部'
+  },
+  {
     key: 'jinja',
     flag: '--jinja',
     label: 'Jinja 模板',
@@ -85,14 +95,13 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
   {
     key: 'ctxSize',
     flag: '-c',
-    label: '上下文长度',
+    label: '上下文长度 (-c)',
     category: 'model',
     type: 'number',
     default: 0,
     min: 0,
     step: 512,
-    advanced: true,
-    hint: '0 = 使用模型训练的上下文长度；与 -np 联动时注意 KV 池大小'
+    hint: '上下文长度（token 数）。0 = 使用模型训练的上下文长度；长对话可调大，注意 KV 显存'
   },
   {
     key: 'mmproj',

@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 export function runMigrations(db: Database.Database): void {
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
@@ -47,6 +47,21 @@ export function runMigrations(db: Database.Database): void {
       const hasKind = db.prepare(`SELECT 1 FROM pragma_table_info('models') WHERE name = 'kind'`).get()
       if (!hasKind) {
         db.exec(`ALTER TABLE models ADD COLUMN kind TEXT NOT NULL DEFAULT 'model'`)
+      }
+    }
+    if (current < 3) {
+      // 密钥表 + messages 记录产生回复的模型（用量统计按模型归组）
+      db.exec(`
+        CREATE TABLE api_keys (
+          id TEXT PRIMARY KEY,
+          name TEXT,
+          key TEXT NOT NULL UNIQUE,
+          created_at INTEGER NOT NULL
+        );
+      `)
+      const hasModelId = db.prepare(`SELECT 1 FROM pragma_table_info('messages') WHERE name = 'model_id'`).get()
+      if (!hasModelId) {
+        db.exec(`ALTER TABLE messages ADD COLUMN model_id TEXT`)
       }
     }
     db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(

@@ -1,11 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useAppStore, subscribeMainEvents } from './store'
+import { applyLanguage } from './i18n'
 import TitleBar from './components/TitleBar'
 import Sidebar, { type ViewId } from './components/Sidebar'
 import RuntimeView from './views/RuntimeView'
 import ModelsView from './views/ModelsView'
 import ServerView from './views/ServerView'
 import ChatView from './views/ChatView'
+import KeysView from './views/KeysView'
+import UsageView from './views/UsageView'
 import SettingsView from './views/SettingsView'
 
 export default function App() {
@@ -14,7 +17,10 @@ export default function App() {
   const init = useAppStore((s) => s.init)
 
   useEffect(() => {
-    void init()
+    void init().then(() => {
+      const st = useAppStore.getState()
+      if (st.settings) applyLanguage(st.settings.lang)
+    })
     return subscribeMainEvents()
   }, [init])
 
@@ -48,6 +54,8 @@ export default function App() {
           {view === 'models' && <ModelsView />}
           {view === 'server' && <ServerView />}
           {view === 'chat' && <ChatView />}
+          {view === 'keys' && <KeysView />}
+          {view === 'usage' && <UsageView />}
           {view === 'settings' && <SettingsView />}
         </main>
       </div>

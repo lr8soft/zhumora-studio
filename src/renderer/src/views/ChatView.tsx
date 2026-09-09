@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store'
+import { useTranslation } from 'react-i18next'
 import type { ChatMessage, ChatRole } from '@shared/types'
 
 export default function ChatView() {
+  const { t } = useTranslation()
   const sessions = useAppStore((s) => s.sessions)
   const activeSessionId = useAppStore((s) => s.activeSessionId)
   const messages = useAppStore((s) => s.messages)
@@ -39,7 +41,7 @@ export default function ChatView() {
   }
 
   const delSession = async (id: string) => {
-    if (!window.confirm('删除该会话及全部消息？')) return
+    if (!window.confirm(t('chat.deleteConfirm'))) return
     await window.zhumora.chat.deleteSession(id)
     const st = useAppStore.getState()
     if (st.activeSessionId === id) st.setActiveSession(null)
@@ -92,13 +94,13 @@ export default function ChatView() {
       <div className="chat-sessions">
         <div className="chat-sessions-head">
           <button className="btn btn-primary" style={{ width: '100%' }} onClick={() => void newSession()}>
-            新会话
+            {t('chat.new')}
           </button>
         </div>
         <div className="chat-session-list">
           {sessions.length === 0 && (
             <div style={{ padding: '12px 8px', color: 'var(--app-color-text-mute)', fontSize: '0.783rem' }}>
-              暂无会话
+              {t('chat.none')}
             </div>
           )}
           {sessions.map((s) => (
@@ -108,7 +110,7 @@ export default function ChatView() {
               onClick={() => useAppStore.getState().setActiveSession(s.id)}
             >
               <span className="title">{s.title}</span>
-              <span className="del" onClick={(e) => { e.stopPropagation(); void delSession(s.id) }} title="删除">
+              <span className="del" onClick={(e) => { e.stopPropagation(); void delSession(s.id) }} title={t('models.delete')}>
                 ✕
               </span>
             </button>
@@ -118,17 +120,17 @@ export default function ChatView() {
 
       <div className="chat-main">
         <div className="chat-toolbar">
-          <span style={{ fontSize: '0.8rem', color: 'var(--app-color-text-soft)' }}>模型</span>
+          <span style={{ fontSize: '0.8rem', color: 'var(--app-color-text-soft)' }}>{t('server.model')}</span>
           <select value={active?.modelId ?? ''} onChange={() => {}}>
-            <option value="">{serverState.modelPath ? serverState.modelPath.split(/[\\/]/).pop() : '（server 未启动）'}</option>
+            <option value="">{serverState.modelPath ? serverState.modelPath.split(/[\\/]/).pop() : t('chat.noServer')}</option>
           </select>
           <span className="spacer" style={{ flex: 1 }} />
           {!serverReady && (
             <span className="badge badge-stopped">
-              {serverState.state === 'error' ? 'server 出错' : 'server 未运行'} — 先在"服务"页启动
+              {serverState.state === 'error' ? t('chat.serverError') : t('chat.serverOff')} — {t('chat.goStart')}
             </span>
           )}
-          {serverReady && <span className="badge badge-ready">已连接</span>}
+          {serverReady && <span className="badge badge-ready">{t('chat.connected')}</span>}
         </div>
 
         <div className="chat-messages" ref={boxRef}>
@@ -136,14 +138,14 @@ export default function ChatView() {
             <div className="empty-state">
               <div>
                 <div className="mark">💬</div>
-                点左侧"新会话"开始对话
+                {t('chat.empty1')}
               </div>
             </div>
           ) : msgCount === 0 && !stream ? (
             <div className="empty-state">
               <div>
                 <div className="mark">✨</div>
-                开始和 {serverState.modelPath?.split(/[\\/]/).pop() ?? '模型'} 对话
+                {t('chat.empty2', { m: serverState.modelPath?.split(/[\\/]/).pop() ?? '…' })}
               </div>
             </div>
           ) : (
@@ -168,13 +170,13 @@ export default function ChatView() {
           <div className="chat-input-inner">
             <details style={{ margin: 0 }} open={showAdv} onToggle={(e) => setShowAdv((e.target as HTMLDetailsElement).open)}>
               <summary style={{ cursor: 'pointer', fontSize: '0.767rem', color: 'var(--app-color-text-mute)' }}>
-                高级选项（请求级覆盖 + system prompt）
+                {t('chat.adv')}
               </summary>
               <div style={{ display: 'grid', gap: 8, marginTop: 8 }}>
                 <div className="sysprompt field">
                   <input
                     type="text"
-                    placeholder="System Prompt（可选，每次请求注入 messages 头部）"
+                    placeholder={t('chat.sysPh')}
                     value={sysPrompt}
                     onChange={(e) => setSysPrompt(e.target.value)}
                   />
@@ -197,7 +199,7 @@ export default function ChatView() {
             </details>
             <textarea
               value={input}
-              placeholder={serverReady ? '输入消息，Enter 发送 / Shift+Enter 换行' : 'server 未运行，无法发送'}
+              placeholder={serverReady ? t('chat.inputPh') : t('chat.inputOff')}
               disabled={!serverReady}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -208,15 +210,15 @@ export default function ChatView() {
               }}
             />
             <div className="chat-input-actions">
-              <span className="sysprompt">{msgCount} 条消息</span>
+              <span className="sysprompt">{t('chat.msgCount', { n: String(msgCount) })}</span>
               <span className="spacer" />
               {isStreaming ? (
                 <button className="btn btn-danger" onClick={() => void window.zhumora.chat.abort()}>
-                  停止生成
+                  {t('chat.stopGen')}
                 </button>
               ) : (
                 <button className="btn btn-primary" onClick={() => void send()} disabled={!serverReady || !input.trim() || !activeSessionId}>
-                  发送
+                  {t('chat.send')}
                 </button>
               )}
             </div>
@@ -228,6 +230,7 @@ export default function ChatView() {
 }
 
 function MessageBubble({ msg }: { msg: ChatMessage }) {
+  const { t } = useTranslation()
   const isErr = msg.id.startsWith('err-')
   return (
     <div className={`msg ${msg.role === 'user' ? 'user' : 'assistant'} ${isErr ? 'err' : ''}`}>
@@ -240,7 +243,7 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
           </span>
         )}
       </div>
-      <div className="bubble">{msg.content || '（空）'}</div>
+      <div className="bubble">{msg.content || t('chat.emptyMsg')}</div>
     </div>
   )
 }

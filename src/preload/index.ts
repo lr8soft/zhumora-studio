@@ -52,6 +52,17 @@ const api: ZhumoraApi = {
     messages: (sessionId: string) => ipcRenderer.invoke(Ipc.chatMessages, sessionId),
     saveMessage: (sessionId: string, message) => ipcRenderer.invoke(Ipc.chatSaveMessage, sessionId, message)
   },
+  keys: {
+    list: () => ipcRenderer.invoke(Ipc.keysList),
+    add: (name: string, key: string) => ipcRenderer.invoke(Ipc.keysAdd, name, key),
+    remove: (id: string) => ipcRenderer.invoke(Ipc.keysRemove, id)
+  },
+  usage: {
+    summary: () => ipcRenderer.invoke(Ipc.usageSummary),
+    daily: (days?: number) => ipcRenderer.invoke(Ipc.usageDaily, days),
+    byModel: () => ipcRenderer.invoke(Ipc.usageByModel),
+    reset: () => ipcRenderer.invoke(Ipc.usageReset)
+  },
   settings: {
     get: () => ipcRenderer.invoke(Ipc.settingsGet),
     save: (patch) => ipcRenderer.invoke(Ipc.settingsSave, patch)

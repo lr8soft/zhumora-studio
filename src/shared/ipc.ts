@@ -1,4 +1,6 @@
 import type {
+  ApiKeyInfo,
+  UsageDaily,
   ChatErrorEvent,
   ChatEndEvent,
   ChatMessage,
@@ -17,7 +19,9 @@ import type {
   RuntimeStatus,
   ServerLogEvent,
   ServerState,
-  Settings
+  Settings,
+  UsageModel,
+  UsageSummary
 } from './types.ts'
 
 // ---------- invoke 通道 ----------
@@ -45,6 +49,13 @@ export const Ipc = {
   chatDeleteSession: 'chat:delete-session',
   chatMessages: 'chat:messages',
   chatSaveMessage: 'chat:save-message',
+  keysList: 'keys:list',
+  keysAdd: 'keys:add',
+  keysRemove: 'keys:remove',
+  usageSummary: 'usage:summary',
+  usageDaily: 'usage:daily',
+  usageByModel: 'usage:by-model',
+  usageReset: 'usage:reset',
   settingsGet: 'settings:get',
   settingsSave: 'settings:save',
   systemPickModel: 'system:pick-model',
@@ -122,9 +133,23 @@ export interface ApiChat {
   saveMessage(sessionId: string, message: ChatMessage): Promise<void>
 }
 
+export interface ApiKeys {
+  list(): Promise<ApiKeyInfo[]>
+  add(name: string, key: string): Promise<ApiKeyInfo[]>
+  remove(id: string): Promise<ApiKeyInfo[]>
+}
+
+export interface ApiUsage {
+  summary(): Promise<UsageSummary>
+  /** days: 统计最近多少天（含今天），默认 14 */
+  daily(days?: number): Promise<UsageDaily[]>
+  byModel(): Promise<UsageModel[]>
+  reset(): Promise<void>
+}
+
 export interface ApiSettings {
   get(): Promise<Settings>
-  save(patch: Partial<Settings>): Promise<void>
+  save(patch: Partial<Settings>): Promise<Settings>
 }
 
 export interface ApiSystem {
@@ -145,6 +170,8 @@ export interface ZhumoraApi {
   server: ApiServer
   runtime: ApiRuntime
   chat: ApiChat
+  keys: ApiKeys
+  usage: ApiUsage
   settings: ApiSettings
   system: ApiSystem
   window: ApiWindow

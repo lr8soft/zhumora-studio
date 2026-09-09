@@ -17,6 +17,7 @@ interface MessageRow {
   prompt_tokens: number | null
   completion_tokens: number | null
   tokens_per_sec: number | null
+  model_id: string | null
   created_at: number
 }
 
@@ -40,6 +41,7 @@ function toMessage(row: MessageRow): ChatMessage {
         ? { prompt: row.prompt_tokens ?? 0, completion: row.completion_tokens ?? 0 }
         : undefined,
     tokensPerSec: row.tokens_per_sec ?? undefined,
+    modelId: row.model_id ?? undefined,
     createdAt: row.created_at
   }
 }
@@ -82,8 +84,8 @@ export class ChatRepo {
     this.db
       .prepare(
         `INSERT OR REPLACE INTO messages
-         (id, session_id, role, content, prompt_tokens, completion_tokens, tokens_per_sec, created_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+         (id, session_id, role, content, prompt_tokens, completion_tokens, tokens_per_sec, model_id, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
       )
       .run(
         message.id,
@@ -93,6 +95,7 @@ export class ChatRepo {
         usage?.prompt ?? null,
         usage?.completion ?? null,
         message.tokensPerSec ?? null,
+        message.modelId ?? null,
         message.createdAt
       )
   }

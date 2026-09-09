@@ -1,5 +1,6 @@
 import { useAppStore } from '../store'
 import { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 function fmtSize(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB'
@@ -14,6 +15,7 @@ function fmtSpeed(bps: number): string {
 }
 
 export default function RuntimeView() {
+  const { t } = useTranslation()
   const runtime = useAppStore((s) => s.runtime)
   const [busy, setBusy] = useState(false)
 
@@ -40,11 +42,11 @@ export default function RuntimeView() {
   const pct = progress && progress.total > 0 ? Math.min(100, (progress.done / progress.total) * 100) : 0
 
   const steps = [
-    { label: '检查本地已安装的 runtime', state: 'checking' },
-    { label: '探测 GPU / CPU 架构', state: 'detected' },
-    { label: '下载匹配的 bin-win 构建（可断点续传）', state: 'downloading' },
-    { label: '解压 + sha256 校验 + 写 manifest', state: 'extracting' },
-    { label: '就绪，可在"服务与参数"页启动 server', state: 'ready' }
+    { label: t('runtime.stepCheck'), state: 'checking' },
+    { label: t('runtime.stepDetect'), state: 'detected' },
+    { label: t('runtime.stepDownload'), state: 'downloading' },
+    { label: t('runtime.stepExtract'), state: 'extracting' },
+    { label: t('runtime.stepDone'), state: 'ready' }
   ]
   const stepIndex = { checking: 0, detected: 1, downloading: 2, extracting: 3, ready: 4, error: -1 }[
     runtime.state
@@ -54,12 +56,12 @@ export default function RuntimeView() {
     <div className="view">
       <div className="view-header">
         <div>
-          <h2>llama.cpp 运行时</h2>
-          <p>首启自动从 GitHub 获取匹配本机构建，不随应用打包</p>
+          <h2>{t('runtime.title')}</h2>
+          <p>{t('runtime.desc')}</p>
         </div>
         <div className="header-actions">
           <button className="btn btn-sm" onClick={() => void refresh()} disabled={busy}>
-            刷新构建列表
+            {t('runtime.refresh')}
           </button>
         </div>
       </div>
@@ -67,13 +69,13 @@ export default function RuntimeView() {
       <div className="card">
         <div className="card-head">
           <h3>
-            状态
+            {t('runtime.status')}
             <span className="sub">
-              {runtime.version ? `${runtime.version} · ${runtime.variant}` : '未安装'}
+              {runtime.version ? `${runtime.version} · ${runtime.variant}` : t('runtime.notInstalled')}
             </span>
           </h3>
           {runtime.state === 'ready' && (
-            <span className="badge badge-ready">ready</span>
+            <span className="badge badge-ready">{t('runtime.ready')}</span>
           )}
         </div>
         <div className="card-body">
@@ -107,7 +109,7 @@ export default function RuntimeView() {
               <div className="progress-meta">
                 <span>
                   {progress.phase === 'extracting'
-                    ? `解压中 ${progress.done}/${progress.total} 文件`
+                    ? t('runtime.extracting', { n: String(progress.done), total: String(progress.total) })
                     : `${fmtSize(progress.done)} / ${fmtSize(progress.total)} · ${fmtSpeed(
                         progress.speed
                       )}`}
@@ -116,7 +118,7 @@ export default function RuntimeView() {
               </div>
               {runtime.state === 'downloading' && (
                 <button className="btn btn-sm btn-danger" style={{ marginTop: 8 }} onClick={cancel}>
-                  取消（保留进度，可续传）
+                  {t('runtime.cancel')}
                 </button>
               )}
             </div>
@@ -127,26 +129,26 @@ export default function RuntimeView() {
       {runtime.detected && (
         <div className="card">
           <div className="card-head">
-            <h3>本机探测</h3>
+            <h3>{t('runtime.detected')}</h3>
           </div>
           <div className="card-body" style={{ display: 'grid', gap: 6, fontSize: '0.833rem' }}>
             <div>
-              架构：<span className="mono">{runtime.detected.arch}</span>
+              {t('runtime.arch')}：<span className="mono">{runtime.detected.arch}</span>
             </div>
             <div>
-              显卡：
+              {t('runtime.gpu')}：
               {runtime.detected.adapters.length > 0
                 ? runtime.detected.adapters.join('；')
-                : '未检测到（或探测失败）'}
+                : t('runtime.noGpu')}
             </div>
             {runtime.detected.nvidiaDriver && (
               <div>
-                NVIDIA 驱动：<span className="mono">{runtime.detected.nvidiaDriver}</span>
+                {t('runtime.nvidiaDriver')}：<span className="mono">{runtime.detected.nvidiaDriver}</span>
               </div>
             )}
             {runtime.recommended && (
               <div>
-                推荐构建：<span className="badge badge-info">{runtime.recommended}</span>
+                {t('runtime.recommended')}：<span className="badge badge-info">{runtime.recommended}</span>
               </div>
             )}
           </div>
@@ -157,9 +159,12 @@ export default function RuntimeView() {
         <div className="card">
           <div className="card-head">
             <h3>
-              可下载构建
+              {t('runtime.builds')}
               <span className="sub">
-                {runtime.version} · 本机 {runtime.detected?.arch ?? 'x64'} · 点选下载
+                {t('runtime.buildsSub', {
+                  ver: String(runtime.version || '—'),
+                  arch: String(runtime.detected?.arch ?? 'x64')
+                })}
               </span>
             </h3>
           </div>
@@ -187,8 +192,8 @@ export default function RuntimeView() {
                     <div>
                       <div className="name">
                         {a.variant}
-                        {a.variant === runtime.recommended && <span className="rec-tag">推荐</span>}
-                        {selected && <span className="rec-tag" style={{ marginLeft: 8 }}>已安装</span>}
+                        {a.variant === runtime.recommended && <span className="rec-tag">{t('runtime.rec')}</span>}
+                        {selected && <span className="rec-tag" style={{ marginLeft: 8 }}>{t('runtime.installed')}</span>}
                       </div>
                       <div className="sub">
                         {a.name} · {a.arch}

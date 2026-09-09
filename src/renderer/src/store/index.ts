@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type {
+  ApiKeyInfo,
   ChatMessage,
   ChatSession,
   LaunchParams,
@@ -55,6 +56,13 @@ interface ChatSlice {
   endStreaming: (sessionId: string, messageId: string) => void
 }
 
+// ---------- keys ----------
+interface KeysSlice {
+  keys: ApiKeyInfo[]
+  setKeys: (k: ApiKeyInfo[]) => void
+  loadKeys: () => Promise<void>
+}
+
 // ---------- settings ----------
 interface SettingsSlice {
   settings: Settings | null
@@ -65,7 +73,7 @@ interface SettingsSlice {
   setParamDirty: (d: boolean) => void
 }
 
-interface AppStore extends ServerSlice, ModelsSlice, ChatSlice, SettingsSlice {
+interface AppStore extends ServerSlice, ModelsSlice, ChatSlice, KeysSlice, SettingsSlice {
   init: () => Promise<void>
   loadModels: () => Promise<void>
 }
@@ -131,6 +139,11 @@ export const useAppStore = create<AppStore>((set, get) => ({
       return { streaming }
     }),
 
+  // keys
+  keys: [],
+  setKeys: (keys) => set({ keys }),
+  loadKeys: async () => set({ keys: await window.zhumora.keys.list() }),
+
   // settings
   settings: null,
   setSettings: (settings) => set({ settings }),
@@ -141,12 +154,13 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // actions
   init: async () => {
-    const [settings, serverState, runtime, models, sessions] = await Promise.all([
+    const [settings, serverState, runtime, models, sessions, keys] = await Promise.all([
       window.zhumora.settings.get(),
       window.zhumora.server.state(),
       window.zhumora.runtime.status(),
       window.zhumora.models.list(),
-      window.zhumora.chat.sessions()
+      window.zhumora.chat.sessions(),
+      window.zhumora.keys.list()
     ])
     set({
       settings,
@@ -154,6 +168,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       runtime,
       models,
       sessions,
+      keys,
       paramDraft: { ...defaultParams(), ...(settings.lastParams as LaunchParams) }
     })
   },
