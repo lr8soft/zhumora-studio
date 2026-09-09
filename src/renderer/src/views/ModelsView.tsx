@@ -201,6 +201,7 @@ export default function ModelsView() {
   const [detail, setDetail] = useState<HfModelDetail | null>(null)
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailError, setDetailError] = useState('')
+  const [avatars, setAvatars] = useState<Record<string, string>>({})
   const reqSeq = useRef(0)
 
   const runSearch = async (q: string, s: HfSort) => {
@@ -239,6 +240,18 @@ export default function ModelsView() {
     void runSearch('', 'best')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 结果更新后预取作者头像（最多 10 个；主进程带缓存+并发限制，取不到为 null → 回退首字母）
+  useEffect(() => {
+    let cancelled = false
+    const owners = [...new Set(results.map((m) => authorOf(m.id)))].slice(0, 10)
+    void Promise.all(owners.map(async (o) => {
+      const url = await window.zhumora.models.ownerAvatar(o).catch(() => null)
+      if (cancelled || !url) return
+      setAvatars((prev) => (prev[o] ? prev : { ...prev, [o]: url }))
+    }))
+    return () => { cancelled = true }
+  }, [results])
 
   const isTrending = query.trim() === '' && sort === 'best'
   const listLabel = isTrending ? '精选模型' : `搜索结果 · ${results.length}`
@@ -330,7 +343,11 @@ export default function ModelsView() {
                 onClick={() => void openModel(m)}
               >
                 <div className="mrow-logo">
-                  <span>{shortName(m.id).charAt(0).toUpperCase()}</span>
+                  {avatars[authorOf(m.id)] ? (
+                    <img src={avatars[authorOf(m.id)]} alt="" loading="lazy" />
+                  ) : (
+                    <span>{shortName(m.id).charAt(0).toUpperCase()}</span>
+                  )}
                   {m.capabilities.vision && <span className="mrow-vision" title="视觉">👁</span>}
                 </div>
                 <div className="mrow-main">
@@ -411,7 +428,11 @@ export default function ModelsView() {
               {/* 头部 */}
               <div className="detail-head">
                 <div className="detail-logo">
-                  <span>{shortName(detailModel.id).charAt(0).toUpperCase()}</span>
+                  {avatars[authorOf(detailModel.id)] ? (
+                    <img src={avatars[authorOf(detailModel.id)]} alt="" />
+                  ) : (
+                    <span>{shortName(detailModel.id).charAt(0).toUpperCase()}</span>
+                  )}
                 </div>
                 <div className="detail-title-wrap" style={{ flex: 1, minWidth: 0 }}>
                   <div className="detail-title">

@@ -15,7 +15,7 @@ import { ServerManager } from '../server/ServerManager'
 import { ChatProxy } from '../chat/ChatProxy'
 import { RuntimeManager } from '../runtime/RuntimeManager'
 import { ModelDownloader } from '../models/downloader'
-import { searchModels, getModelDetail } from '../models/huggingface'
+import { searchModels, getModelDetail, getOwnerAvatar } from '../models/huggingface'
 import type { HfSort } from '@shared/types'
 
 /** 输入校验：LaunchParams 按 schema 收敛（只保留已知 key + 类型） */
@@ -125,6 +125,11 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   ipcMain.handle(Ipc.modelsDetail, async (_e, repoId: string) => {
     if (typeof repoId !== 'string' || !repoId) throw new Error('非法的仓库 ID')
     return getModelDetail(repoId)
+  })
+
+  ipcMain.handle(Ipc.modelsAvatar, async (_e, owner: string) => {
+    if (typeof owner !== 'string' || !owner || owner.length > 80) return null
+    return getOwnerAvatar(owner)
   })
 
   ipcMain.handle(Ipc.modelsDownload, async (_e, repoId: string, file: string) => {

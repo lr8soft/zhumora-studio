@@ -27,6 +27,7 @@ export const Ipc = {
   modelsRemove: 'models:remove',
   modelsSearch: 'models:search',
   modelsDetail: 'models:detail',
+  modelsAvatar: 'models:avatar',
   modelsDownload: 'models:download',
   modelsCancelDownload: 'models:cancel-download',
   serverState: 'server:state',
@@ -92,6 +93,7 @@ export interface ApiModels {
   remove(id: string): Promise<void>
   search(query: string, sort?: HfSort): Promise<HfModel[]>
   detail(repoId: string): Promise<HfModelDetail>
+  ownerAvatar(owner: string): Promise<string | null>
   download(repoId: string, file: string): Promise<void>
   cancelDownload(id: string): Promise<void>
 }

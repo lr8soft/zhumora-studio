@@ -215,3 +215,51 @@ export function shortDescription(readme: string, maxLen = 220): string | undefin
 export function fileUrl(repoId: string, filePath: string): string {
   return `https://huggingface.co/${repoId}/resolve/main/${filePath.split('/').map(encodeURIComponent).join('/')}`
 }
+
+// ---------- 作者头像 ----------
+// HF 无轻量 JSON 端点，头像 URL 嵌在 owner 页面 HTML 里（cdn-avatars.huggingface.co）。
+// 抓取页面提取 + 内存缓存（60 分钟）+ 并发限制（3），避免对 HF 造成压力。
+
+const AVATAR_TTL = 60 * 60 * 1000
+const AVATAR_NEG_TTL = 5 * 60 * 1000
+const avatarCache = new Map<string, { url: string | null; at: number }>()
+let avatarInflight = 0
+
+function extractOwnerAvatar(html: string, owner: string): string | null {
+  const h = html.replace(/&quot;/g, '"')
+  // 组织：{"org":{"avatarUrl":"...","fullname":"...","name":"Qwen","type":"org"...
+  let m = h.match(/"org":\{"avatarUrl":"(https:\/\/cdn-avatars\.huggingface\.co\/[^"]+)"/)
+  if (m) return m[1]
+  // 用户：页面内 "name":"owner" 附近的 avatarUrl
+  const idx = h.indexOf(`"name":"${owner}"`)
+  if (idx > -1) {
+    const seg = h.slice(Math.max(0, idx - 400), idx + 400)
+    const am = seg.match(/"avatarUrl":"(https:\/\/cdn-avatars\.huggingface\.co\/[^"]+)"/)
+    if (am) return am[1]
+  }
+  return null
+}
+
+/** 取作者头像 URL；没有/失败返回 null。带缓存与并发限制 */
+export async function getOwnerAvatar(owner: string): Promise<string | null> {
+  const hit = avatarCache.get(owner)
+  if (hit && Date.now() - hit.at < AVATAR_TTL) return hit.url
+  // 并发保护：最多 3 个同时抓
+  while (avatarInflight >= 3) await sleep(120)
+  avatarInflight++
+  try {
+    const res = await fetch(`https://huggingface.co/${owner}`, {
+      headers: { 'User-Agent': 'zhumora-studio', Accept: 'text/html' }
+    })
+    if (!res.ok) throw new Error(`HF owner 页失败: HTTP ${res.status}`)
+    const url = extractOwnerAvatar(await res.text(), owner)
+    avatarCache.set(owner, { url, at: Date.now() })
+    return url
+  } catch {
+    // 失败短缓存 5 分钟，避免反复打
+    avatarCache.set(owner, { url: null, at: Date.now() - (AVATAR_TTL - AVATAR_NEG_TTL) })
+    return null
+  } finally {
+    avatarInflight--
+  }
+}
