@@ -25,8 +25,8 @@ const api: ZhumoraApi = {
     list: () => ipcRenderer.invoke(Ipc.modelsList),
     import: () => ipcRenderer.invoke(Ipc.modelsImport),
     remove: (id: string) => ipcRenderer.invoke(Ipc.modelsRemove, id),
-    search: (query: string) => ipcRenderer.invoke(Ipc.modelsSearch, query),
-    repoFiles: (repoId: string) => ipcRenderer.invoke(Ipc.modelsRepoFiles, repoId),
+    search: (query: string, sort?) => ipcRenderer.invoke(Ipc.modelsSearch, query, sort),
+    detail: (repoId: string) => ipcRenderer.invoke(Ipc.modelsDetail, repoId),
     download: (repoId: string, file: string) => ipcRenderer.invoke(Ipc.modelsDownload, repoId, file),
     cancelDownload: (id: string) => ipcRenderer.invoke(Ipc.modelsCancelDownload, id)
   },

@@ -5,8 +5,9 @@ import type {
   ChatSendRequest,
   ChatSession,
   ChatTokenEvent,
-  HfFile,
   HfModel,
+  HfModelDetail,
+  HfSort,
   LaunchParams,
   ModelDownloadDone,
   ModelDownloadError,
@@ -25,7 +26,7 @@ export const Ipc = {
   modelsImport: 'models:import',
   modelsRemove: 'models:remove',
   modelsSearch: 'models:search',
-  modelsRepoFiles: 'models:repo-files',
+  modelsDetail: 'models:detail',
   modelsDownload: 'models:download',
   modelsCancelDownload: 'models:cancel-download',
   serverState: 'server:state',
@@ -89,8 +90,8 @@ export interface ApiModels {
   list(): Promise<ModelInfo[]>
   import(): Promise<ModelInfo[]>
   remove(id: string): Promise<void>
-  search(query: string): Promise<HfModel[]>
-  repoFiles(repoId: string): Promise<HfFile[]>
+  search(query: string, sort?: HfSort): Promise<HfModel[]>
+  detail(repoId: string): Promise<HfModelDetail>
   download(repoId: string, file: string): Promise<void>
   cancelDownload(id: string): Promise<void>
 }

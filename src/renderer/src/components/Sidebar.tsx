@@ -4,7 +4,7 @@ export type ViewId = 'runtime' | 'models' | 'server' | 'chat' | 'settings'
 
 const NAV: { id: ViewId; label: string }[] = [
   { id: 'runtime', label: '运行时' },
-  { id: 'models', label: '模型库' },
+  { id: 'models', label: '模型广场' },
   { id: 'server', label: '服务与参数' },
   { id: 'chat', label: '对话' },
   { id: 'settings', label: '设置' }

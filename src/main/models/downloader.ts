@@ -1,7 +1,8 @@
 import { basename, join } from 'path'
 import { mkdirSync } from 'fs'
 import { downloadFile } from '../download/Downloader'
-import { fileUrl, isMmprojPath } from './huggingface'
+import { isMmprojPath } from '@shared/hfutil'
+import { fileUrl } from './huggingface'
 import type {
   ModelDownloadDone,
   ModelDownloadError,

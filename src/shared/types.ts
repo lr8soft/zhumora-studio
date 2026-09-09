@@ -110,16 +110,46 @@ export interface ModelInfo {
 
 // ---------- huggingface 下载 ----------
 
+export interface HfCapabilities {
+  vision: boolean
+  tool: boolean
+  reasoning: boolean
+}
+
+export type HfSort = 'best' | 'likes' | 'updated'
+
 export interface HfModel {
   id: string
   downloads: number
   likes: number
   tags: string[]
+  pipelineTag?: string
+  createdAt?: string
+  lastModified?: string
+  capabilities: HfCapabilities
+  /** 参数量（从仓库名推断，如 "27B" / "30B · A3B 激活"），不确定时缺省 */
+  params?: string
+  /** 架构（来自仓库 gguf 元数据，仅详情有） */
+  arch?: string
+  /** 训练上下文长度（仅详情有） */
+  contextLength?: number
+  license?: string
+  gated?: boolean
+  /** 全部 gguf 文件总大小（仅详情有） */
+  totalSize?: number
 }
 
 export interface HfFile {
   path: string
   size: number
+}
+
+/** 仓库详情（列表行 + gguf 元数据 + 文件 + README 预览），一次取齐 */
+export interface HfModelDetail {
+  model: HfModel
+  shortDescription?: string
+  readme?: string
+  files: HfFile[]
 }
 
 export interface ModelDownloadProgress {

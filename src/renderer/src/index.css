@@ -253,3 +253,95 @@ details.advanced[open] summary { margin-bottom: 12px; }
 
 .toast { position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%); padding: 9px 16px; border-radius: 7px; background: var(--app-color-text); color: var(--app-color-bg); font-size: 0.8rem; z-index: 500; box-shadow: var(--app-shadow-panel); max-width: 70vw; }
 .toast.error { background: var(--app-color-danger); color: #fff; }
+
+/* ============================================================
+   模型广场（marketplace）— 双栏：左搜索列表 / 右详情
+   ============================================================ */
+.market { display: grid; grid-template-columns: minmax(340px, 42%) minmax(0, 1fr); grid-template-rows: calc(100vh - 214px); gap: 14px; align-items: stretch; }
+@media (max-width: 1100px) { .market { grid-template-columns: 1fr; grid-template-rows: auto; } }
+
+/* 左栏：搜索 + 列表 */
+.market-list { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.market-search { padding: 12px 12px 10px; border-bottom: 1px solid var(--app-color-border); }
+.market-search-row { display: flex; gap: 6px; align-items: center; }
+.market-search-row input[type='text'] {
+  flex: 1; min-width: 0; min-height: 34px; padding: 6px 12px; border: 1px solid var(--app-color-border);
+  border-radius: 6px; background: var(--app-color-surface); font-size: 0.833rem; outline: none; transition: border-color 0.12s;
+}
+.market-search-row input:focus { border-color: var(--app-color-primary); }
+.market-search-row select { min-height: 34px; padding: 0 8px; border: 1px solid var(--app-color-border); border-radius: 6px; background: var(--app-color-surface); font-size: 0.767rem; color: var(--app-color-text-soft); cursor: pointer; }
+.market-list-label { display: flex; align-items: center; gap: 6px; margin-top: 10px; font-size: 0.733rem; font-weight: 700; color: var(--app-color-text-mute); text-transform: uppercase; letter-spacing: 0.05em; }
+.market-refresh { cursor: pointer; font-size: 0.9rem; line-height: 1; color: var(--app-color-text-mute); padding: 0 3px; border-radius: 4px; }
+.market-refresh:hover { color: var(--app-color-primary); }
+
+.market-rows { flex: 1; min-height: 0; overflow-y: auto; padding: 8px; display: grid; gap: 4px; align-content: start; }
+.mrow { display: flex; align-items: center; gap: 10px; width: 100%; padding: 10px; border: 1px solid transparent; border-radius: 8px; background: transparent; color: inherit; cursor: pointer; text-align: left; transition: background 0.12s, border-color 0.12s; }
+.mrow:hover { background: var(--app-muted-bg); }
+.mrow.active { background: var(--app-active-bg); border-color: color-mix(in srgb, var(--app-color-primary) 40%, transparent); }
+.mrow-logo { width: 36px; height: 36px; flex: 0 0 auto; border-radius: 8px; display: grid; place-items: center; background: var(--app-muted-bg); font-size: 1.05rem; font-weight: 700; color: var(--app-color-text-soft); position: relative; }
+.mrow-logo > span:first-child { line-height: 1; }
+.mrow-vision { position: absolute; right: -4px; bottom: -4px; font-size: 0.7rem; background: var(--app-color-surface); border-radius: 50%; padding: 1px; }
+.mrow-main { flex: 1; min-width: 0; }
+.mrow-name { display: flex; align-items: center; font-size: 0.867rem; font-weight: 650; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mrow-locked { font-size: 0.733rem; margin-left: 5px; }
+.mrow-sub { margin-top: 2px; color: var(--app-color-text-mute); font-size: 0.733rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cap-ico { font-size: 0.733rem; filter: saturate(1.1); }
+
+/* 左栏底部：进行中下载 */
+.market-active { border-top: 1px solid var(--app-color-border); padding: 10px 12px; display: grid; gap: 10px; background: var(--app-muted-bg); }
+.market-active-item { display: grid; gap: 5px; }
+.market-active-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 0.767rem; }
+.market-active-top .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-cancel { border: 0; background: transparent; color: var(--app-color-text-mute); font-size: 0.733rem; cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+.dl-cancel:hover { color: var(--app-color-danger); background: color-mix(in srgb, var(--app-color-danger) 12%, transparent); }
+.market-active-meta { color: var(--app-color-text-mute); font-size: 0.7rem; }
+
+/* 右栏：详情 */
+.market-detail { display: flex; flex-direction: column; overflow: hidden; min-height: 0; }
+.detail-scroll { flex: 1; min-height: 0; overflow-y: auto; padding: 16px 18px 22px; }
+.detail-head { display: flex; align-items: flex-start; gap: 14px; }
+.detail-logo { width: 52px; height: 52px; flex: 0 0 auto; border-radius: 12px; display: grid; place-items: center; background: var(--app-color-primary); color: #fff; font-size: 1.6rem; font-weight: 700; }
+.detail-title { display: flex; align-items: center; gap: 8px; font-size: 1.05rem; font-weight: 700; word-break: break-all; }
+
+.detail-stats { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 16px; }
+.dstat { display: flex; align-items: center; gap: 7px; padding: 8px 14px; border: 1px solid var(--app-color-border); border-radius: 9px; background: var(--app-color-surface); font-size: 0.8rem; }
+.dstat strong { font-size: 0.9rem; font-weight: 700; }
+.dstat span:last-child { color: var(--app-color-text-mute); font-size: 0.733rem; }
+.dstat-ico { font-size: 0.9rem; opacity: 0.75; }
+.dstat-badge { background: color-mix(in srgb, var(--app-color-info) 14%, transparent); border-color: color-mix(in srgb, var(--app-color-info) 35%, transparent); color: var(--app-color-info); font-weight: 650; }
+
+.detail-desc { margin: 14px 0 4px; color: var(--app-color-text-soft); font-size: 0.867rem; line-height: 1.55; }
+
+.detail-meta { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+.meta-chip { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border: 1px solid var(--app-color-border); border-radius: 7px; background: var(--app-muted-bg); }
+.meta-label { color: var(--app-color-text-mute); font-size: 0.7rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.meta-value { font-size: 0.8rem; font-weight: 650; }
+
+.detail-caps { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.cap-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; border-radius: 20px; background: var(--app-color-primary-soft); color: var(--app-color-primary-strong); font-size: 0.733rem; font-weight: 650; }
+.cap-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.detail-section { margin-top: 20px; }
+.detail-section-title { display: flex; align-items: center; gap: 8px; font-size: 0.8rem; font-weight: 700; margin-bottom: 10px; }
+
+/* 下载选项列表 */
+.dl-list { display: grid; gap: 6px; }
+.dl-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; padding: 9px 12px; border: 1px solid var(--app-color-border); border-radius: 8px; background: var(--app-color-surface); }
+.dl-main { flex: 1 1 180px; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
+.dl-main .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-size { color: var(--app-color-text-mute); font-size: 0.767rem; white-space: nowrap; }
+.dl-row > .btn, .dl-row > .dl-done, .dl-row > .dl-err { flex: 0 0 auto; }
+.dl-row > .progress { flex-basis: 100%; height: 5px; }
+.dl-done { color: var(--app-color-success); font-size: 0.767rem; font-weight: 650; white-space: nowrap; }
+.dl-err { color: var(--app-color-danger); font-size: 0.733rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+
+/* README */
+.readme { font-size: 0.833rem; line-height: 1.6; color: var(--app-color-text-soft); display: grid; gap: 8px; }
+.readme-h { color: var(--app-color-text); font-weight: 700; margin-top: 6px; }
+.readme-h.readme-l1 { font-size: 1.05rem; }
+.readme-h.readme-l2 { font-size: 0.95rem; }
+.readme-h.readme-l3 { font-size: 0.883rem; }
+.readme-p { color: var(--app-color-text-soft); }
+.readme-li { display: flex; gap: 8px; padding-left: 2px; }
+.readme-bullet { width: 5px; height: 5px; border-radius: 50%; background: var(--app-color-text-mute); margin-top: 9px; flex: 0 0 auto; }
+.readme-code { background: #10141a; color: #c9d4de; border-radius: 7px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.733rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 0; }

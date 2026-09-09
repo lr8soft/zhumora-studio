@@ -15,7 +15,8 @@ import { ServerManager } from '../server/ServerManager'
 import { ChatProxy } from '../chat/ChatProxy'
 import { RuntimeManager } from '../runtime/RuntimeManager'
 import { ModelDownloader } from '../models/downloader'
-import { searchModels, repoFiles } from '../models/huggingface'
+import { searchModels, getModelDetail } from '../models/huggingface'
+import type { HfSort } from '@shared/types'
 
 /** 输入校验：LaunchParams 按 schema 收敛（只保留已知 key + 类型） */
 function validateParams(raw: unknown): LaunchParams {
@@ -115,14 +116,15 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   })
 
   // ---------- huggingface 搜索 / 下载 ----------
-  ipcMain.handle(Ipc.modelsSearch, async (_e, query: string) => {
+  ipcMain.handle(Ipc.modelsSearch, async (_e, query: string, sort?: HfSort) => {
     if (typeof query !== 'string') return []
-    return searchModels(query)
+    const s: HfSort = sort === 'likes' || sort === 'updated' ? sort : 'best'
+    return searchModels(query, s)
   })
 
-  ipcMain.handle(Ipc.modelsRepoFiles, async (_e, repoId: string) => {
-    if (typeof repoId !== 'string' || !repoId) return []
-    return repoFiles(repoId)
+  ipcMain.handle(Ipc.modelsDetail, async (_e, repoId: string) => {
+    if (typeof repoId !== 'string' || !repoId) throw new Error('非法的仓库 ID')
+    return getModelDetail(repoId)
   })
 
   ipcMain.handle(Ipc.modelsDownload, async (_e, repoId: string, file: string) => {
