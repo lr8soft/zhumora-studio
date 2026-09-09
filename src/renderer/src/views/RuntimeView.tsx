@@ -158,12 +158,22 @@ export default function RuntimeView() {
           <div className="card-head">
             <h3>
               可下载构建
-              <span className="sub">{runtime.version} · 点选下载</span>
+              <span className="sub">
+                {runtime.version} · 本机 {runtime.detected?.arch ?? 'x64'} · 点选下载
+              </span>
             </h3>
           </div>
           <div className="card-body">
             <div className="variant-grid">
-              {runtime.assets.map((a) => {
+              {runtime.assets
+                .filter((a) => a.arch === (runtime.detected?.arch ?? 'x64'))
+                .sort((a, b) => {
+                  // 推荐置顶
+                  if (a.variant === runtime.recommended) return -1
+                  if (b.variant === runtime.recommended) return 1
+                  return a.variant.localeCompare(b.variant)
+                })
+                .map((a) => {
                 const selected =
                   runtime.state === 'ready' && runtime.variant === a.variant
                 return (

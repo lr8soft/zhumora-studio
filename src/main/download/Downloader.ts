@@ -1,4 +1,4 @@
-import { createWriteStream, existsSync, statSync, renameSync, unlinkSync, mkdirSync } from 'fs'
+import { createWriteStream, existsSync, statSync, renameSync, unlinkSync, mkdirSync, readFileSync } from 'fs'
 import { dirname } from 'path'
 import { createHash } from 'crypto'
 
@@ -23,6 +23,17 @@ const SPEED_WINDOW_MS = 500
  * 下载写 `<dest>.part`，完成后改名。失败/取消保留 .part 供续传。
  */
 export async function downloadFile(opts: DownloadOptions): Promise<void> {
+  // 已完整下载过（如上次解压失败）→ 校验后直接复用，不重复下载
+  if (existsSync(opts.dest)) {
+    const actual = opts.expectedSha256 ? sha256Of(opts.dest) : undefined
+    if (opts.expectedSha256 && actual !== opts.expectedSha256.toLowerCase()) {
+      unlinkSync(opts.dest) // 校验失败 → 删掉重下
+    } else {
+      opts.onProgress({ done: statSync(opts.dest).size, total: statSync(opts.dest).size, speed: 0 })
+      return
+    }
+  }
+
   const part = opts.dest + '.part'
   mkdirSync(dirname(part), { recursive: true })
 
@@ -112,6 +123,14 @@ export async function downloadFile(opts: DownloadOptions): Promise<void> {
 
   renameSync(part, opts.dest)
   opts.onProgress({ done: total, total, speed: 0 })
+}
+
+function sha256Of(file: string): string | undefined {
+  try {
+    return createHash('sha256').update(readFileSync(file)).digest('hex')
+  } catch {
+    return undefined
+  }
 }
 
 function parseTotal(res: Response, existing: number): number {

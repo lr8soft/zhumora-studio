@@ -12,10 +12,14 @@ interface Props {
 
 /** 由 launchParams schema 驱动的动态参数表单 */
 export default function ParamForm({ value, onChange, disabled, showAdvanced = true }: Props) {
+  // modelPath 由调用方特判渲染（模型库下拉 + 浏览），不在通用表单里重复
   const byCategory = useMemo(() => {
     const map = new Map<string, ParamSpec[]>()
     for (const c of PARAM_CATEGORIES) map.set(c.id, [])
-    for (const spec of LAUNCH_PARAMS) map.get(spec.category)?.push(spec)
+    for (const spec of LAUNCH_PARAMS) {
+      if (spec.key === 'modelPath') continue
+      map.get(spec.category)?.push(spec)
+    }
     return map
   }, [])
 

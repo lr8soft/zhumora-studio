@@ -101,13 +101,14 @@ export class RuntimeManager {
     return this.status
   }
 
-  /** 下载 + 解压指定变体（或推荐变体） */
+  /** 下载 + 解压指定变体（或推荐变体）；同变体多架构时只匹配本机架构 */
   async download(variant?: string): Promise<void> {
     if (this.busy) throw new Error('已有下载任务进行中')
-    const asset =
-      (this.status.assets ?? []).find((a) => a.variant === (variant ?? this.status.recommended)) ??
-      (this.status.assets ?? [])[0]
-    if (!asset) throw new Error('没有可下载的构建，请先刷新')
+    const arch = this.status.detected?.arch ?? (process.arch === 'arm64' ? 'arm64' : 'x64')
+    const pool = (this.status.assets ?? []).filter((a) => a.arch === arch)
+    const wanted = variant ?? this.status.recommended
+    const asset = pool.find((a) => a.variant === wanted) ?? pool[0]
+    if (!asset) throw new Error('没有匹配本机架构的可下载构建，请先刷新')
 
     this.busy = true
     this.abort = new AbortController()
@@ -214,7 +215,13 @@ function findBinary(dir: string): string | undefined {
   return undefined
 }
 
-/** 流式解压 zip（yauzl），只提取 exe/dll/so 等二进制与必要文件 */
+/**
+ * 流式解压 zip。
+ * yauzl v3 API（Context7 核实）：
+ * - 推进条目：zip.readEntry()（不是 v2 的 readNext）
+ * - 读文件：zip.openReadStream(entry, (err, stream) => ...)
+ * - 读完一个条目（stream end）后再 zip.readEntry() 推进
+ */
 function extractZip(
   zipPath: string,
   destDir: string,
@@ -225,32 +232,41 @@ function extractZip(
       if (err || !zip) return reject(err ?? new Error('无法打开 zip'))
       let done = 0
       const total = zip.entryCount
+
       zip.on('entry', (entry: yauzl.Entry) => {
         const name = entry.fileName.replace(/\\/g, '/')
-        if (name.endsWith('/') || name.includes('__MACOSX') || name.includes('.DS_Store')) {
-          zip.readNext()
+        // 目录 / mac 元数据：跳过（直接推进）
+        if (
+          name.endsWith('/') ||
+          name.includes('__MACOSX') ||
+          name.includes('.DS_Store')
+        ) {
+          zip.readEntry()
           return
         }
         const out = join(destDir, name)
-        // zip slip 防护
+        // zip slip 防护：目标必须在 destDir 内
         if (!out.startsWith(destDir)) {
-          zip.readNext()
-          return
-        }
-        if (entry.type === 'directory') {
-          mkdirSync(out, { recursive: true })
-          zip.readNext()
+          zip.readEntry()
           return
         }
         mkdirSync(dirname(out), { recursive: true })
-        const ws = createWriteStream(out)
-        zip.pipe(ws)
-        ws.on('finish', () => {
-          done++
-          if (done % 5 === 0 || done === total) onProgress(done, total)
-          zip.readNext()
+        zip.openReadStream(entry, (rerr, stream) => {
+          if (rerr || !stream) {
+            reject(rerr ?? new Error('无法读取 zip 条目'))
+            return
+          }
+          const ws = createWriteStream(out)
+          stream.on('error', reject)
+          ws.on('error', reject)
+          stream.pipe(ws)
+          stream.on('end', () => {
+            ws.close()
+            done++
+            if (done % 5 === 0 || done === total) onProgress(done, total)
+            zip.readEntry()
+          })
         })
-        ws.on('error', reject)
       })
       zip.on('end', () => {
         onProgress(total, total)
