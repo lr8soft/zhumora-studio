@@ -22,6 +22,10 @@ export interface ParamSpec {
   advanced?: boolean
   secret?: boolean
   hint?: string
+  /** 独占整行（跨全部网格列），用于长路径 / 长参数 */
+  fullWidth?: boolean
+  /** 输入用等宽字体 */
+  mono?: boolean
 }
 
 /** 启动参数值表：key 与 ParamSpec.key 对应。extraArgs 为透传原始参数。 */

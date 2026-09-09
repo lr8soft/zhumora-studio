@@ -29,7 +29,7 @@ export default function ChatView() {
   useEffect(() => {
     const el = boxRef.current
     if (el) el.scrollTop = el.scrollHeight
-  }, [messages[activeSessionId ?? '']?.length, isStreaming])
+  }, [messages[activeSessionId ?? '']?.length, streaming[activeSessionId ?? '']?.content, isStreaming])
 
   const newSession = async () => {
     const modelId = (active?.modelId ?? '') || (models[0]?.id ?? '')

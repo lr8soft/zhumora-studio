@@ -149,13 +149,19 @@ h1, h2, h3, p { margin: 0; }
 .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--app-color-primary); }
 .field textarea { min-height: 64px; resize: vertical; line-height: 1.45; }
 .field input:disabled, .field select:disabled { opacity: 0.6; cursor: not-allowed; }
-.form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 14px; }
+.field .pick { display: flex; gap: 8px; align-items: stretch; }
+.field .pick > select, .field .pick > input { flex: 1; min-width: 0; min-height: 34px; }
+.hint-link { border: 0; background: transparent; padding: 0 2px; font: inherit; color: var(--app-color-primary-strong); cursor: pointer; text-decoration: underline; }
+.hint-link:hover { color: var(--app-color-primary); }
+.form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px 14px; align-items: start; }
+.field-full { grid-column: 1 / -1; }
 .form-section { margin-top: 16px; }
 .form-section:first-child { margin-top: 0; }
 .form-section-title { display: flex; align-items: center; gap: 8px; font-size: 0.767rem; font-weight: 700; color: var(--app-color-text-mute); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 10px; }
-.check-line { display: flex; align-items: center; gap: 8px; min-height: 32px; padding: 0 4px; font-size: 0.833rem; }
+.check-line { display: grid; grid-template-columns: auto minmax(0, auto); align-items: center; column-gap: 8px; row-gap: 2px; min-height: 32px; padding: 0 4px; font-size: 0.833rem; }
 .check-line input { width: 15px; height: 15px; accent-color: var(--app-color-primary); }
-.check-line .hint { font-size: 0.7rem; color: var(--app-color-text-mute); }
+.check-line > span { min-width: 0; }
+.check-line .hint { grid-column: 2; grid-row: 2; font-size: 0.7rem; line-height: 1.4; color: var(--app-color-text-mute); }
 details.advanced { margin-top: 12px; border: 1px dashed var(--app-color-border); border-radius: 6px; padding: 8px 12px; }
 details.advanced summary { cursor: pointer; font-size: 0.767rem; font-weight: 650; color: var(--app-color-text-soft); user-select: none; }
 details.advanced[open] summary { margin-bottom: 12px; }

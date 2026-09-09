@@ -97,12 +97,13 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
   {
     key: 'mmproj',
     flag: '--mmproj',
-    label: '多模态投影 (mmproj)',
+    label: '多模态投影 mmproj',
     category: 'model',
     type: 'string',
     default: '',
-    advanced: true,
-    hint: '视觉模型配套投影文件路径（.gguf），非视觉模型留空'
+    hint: '视觉模型（Qwen-VL / LLaVA 等）的投影文件（.gguf）；非视觉模型留空',
+    fullWidth: true,
+    mono: true
   },
   {
     key: 'chatTemplate',
@@ -160,18 +161,37 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
   {
     key: 'splitMode',
     flag: '--split-mode',
-    label: 'GPU 拆分方式',
+    label: 'GPU 拆分方式 (split-mode)',
     category: 'performance',
     type: 'select',
     default: '',
     options: [
       { value: '', label: '自动' },
       { value: 'none', label: '不拆分' },
-      { value: 'layer', label: '按层' },
-      { value: 'row', label: '按行' },
-      { value: 'tensor', label: '按张量' }
+      { value: 'layer', label: '按层 (layer)' },
+      { value: 'row', label: '按行 (row)' },
+      { value: 'tensor', label: '按张量 (tensor)' }
     ],
-    advanced: true
+    hint: '多 GPU 时各卡如何切分权重；单卡可忽略'
+  },
+  {
+    key: 'tensorSplit',
+    flag: '--tensor-split',
+    label: '张量切分权重 (tensor-split)',
+    category: 'performance',
+    type: 'string',
+    default: '',
+    hint: '逗号分隔，每 GPU 权重占比，如 4,2,1 或 0.7,0.3；总和无需为 1'
+  },
+  {
+    key: 'mainGpu',
+    flag: '--main-gpu',
+    label: '主 GPU (main-gpu)',
+    category: 'performance',
+    type: 'number',
+    default: 0,
+    min: 0,
+    hint: '主 GPU 索引；split 模式下该卡多承担一些计算'
   },
   {
     key: 'flashAttention',

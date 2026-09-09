@@ -120,38 +120,15 @@ export const useAppStore = create<AppStore>((set, get) => ({
     set((s) => {
       const cur = s.streaming[sessionId]
       if (!cur || cur.messageId !== messageId) return s
-      const messages = { ...s.messages }
-      const list = messages[sessionId] ?? []
-      // 流式消息以临时 ID 挂最后，token 追加
-      const last = list[list.length - 1]
-      if (last && last.id === `pending-${messageId}`) {
-        list[list.length - 1] = { ...last, content: last.content + delta }
-      } else {
-        list.push({
-          id: `pending-${messageId}`,
-          role: 'assistant',
-          content: delta,
-          createdAt: Date.now()
-        })
-      }
-      messages[sessionId] = list
-      return { messages, streaming: { ...s.streaming, [sessionId]: { ...cur, content: cur.content + delta } } }
+      // 流式内容只存 streaming，不写入 messages（渲染层单独展示，避免重复气泡）
+      return { streaming: { ...s.streaming, [sessionId]: { ...cur, content: cur.content + delta } } }
     }),
   endStreaming: (sessionId, messageId) =>
     set((s) => {
       const streaming = { ...s.streaming }
       delete streaming[sessionId]
-      const messages = { ...s.messages }
-      const list = messages[sessionId]
-      if (list) {
-        // 用最终内容替换 pending 占位（真实消息由 main 持久化后重拉校准）
-        const pending = list.findIndex((m) => m.id === `pending-${messageId}`)
-        if (pending >= 0) {
-          list.splice(pending, 1)
-        }
-        messages[sessionId] = list
-      }
-      return { streaming, messages }
+      // 真实消息由 main 持久化后重拉校准，这里只清 streaming 状态
+      return { streaming }
     }),
 
   // settings
@@ -210,17 +187,21 @@ export function subscribeMainEvents(): () => void {
     window.zhumora.on(IpcEvent.chatError, (e) => {
       const st = useAppStore.getState()
       st.endStreaming(e.sessionId, e.messageId ?? '')
-      // 错误也作为一条 assistant 消息展示（不落库）
-      const messages = { ...st.messages }
-      const list = messages[e.sessionId] ?? []
-      list.push({
-        id: `err-${Date.now()}`,
-        role: 'assistant',
-        content: `⚠ ${e.message}`,
-        createdAt: Date.now()
+      // 错误也作为一条 assistant 消息展示（不落库）；
+      // 先重拉 DB（中止/出错时 main 可能已落盘部分内容），再追加错误气泡
+      void window.zhumora.chat.messages(e.sessionId).then((msgs) => {
+        const cur = useAppStore.getState()
+        const list = [
+          ...msgs,
+          {
+            id: `err-${Date.now()}`,
+            role: 'assistant' as const,
+            content: `⚠ ${e.message}`,
+            createdAt: Date.now()
+          }
+        ]
+        useAppStore.setState({ messages: { ...cur.messages, [e.sessionId]: list } })
       })
-      messages[e.sessionId] = list
-      useAppStore.setState({ messages })
     }),
     window.zhumora.on(IpcEvent.modelProgress, (p) => useAppStore.getState().setDownload(p)),
     window.zhumora.on(IpcEvent.modelDone, async (d) => {

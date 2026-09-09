@@ -12,12 +12,12 @@ interface Props {
 
 /** 由 launchParams schema 驱动的动态参数表单 */
 export default function ParamForm({ value, onChange, disabled, showAdvanced = true }: Props) {
-  // modelPath 由调用方特判渲染（模型库下拉 + 浏览），不在通用表单里重复
+  // modelPath / mmproj 由调用方特判渲染（模型库下拉 + 浏览），不在通用表单里重复
   const byCategory = useMemo(() => {
     const map = new Map<string, ParamSpec[]>()
     for (const c of PARAM_CATEGORIES) map.set(c.id, [])
     for (const spec of LAUNCH_PARAMS) {
-      if (spec.key === 'modelPath') continue
+      if (spec.key === 'modelPath' || spec.key === 'mmproj') continue
       map.get(spec.category)?.push(spec)
     }
     return map
@@ -60,7 +60,7 @@ export default function ParamForm({ value, onChange, disabled, showAdvanced = tr
       })}
       <div className="form-section">
         <div className="form-row">
-          <div className="field" style={{ gridColumn: '1 / -1' }}>
+          <div className="field field-full">
             <label>原始参数（extra）</label>
             <input
               type="text"
@@ -89,10 +89,11 @@ function Field({
   disabled?: boolean
   onChange: (v: number | string | boolean) => void
 }) {
+  const cls = (base: string) => (spec.fullWidth ? `${base} field-full` : base)
   switch (spec.type) {
     case 'boolean':
       return (
-        <label className="check-line">
+        <label className={cls('check-line')}>
           <input
             type="checkbox"
             checked={value === true}
@@ -105,7 +106,7 @@ function Field({
       )
     case 'select':
       return (
-        <div className="field">
+        <div className={cls('field')}>
           <label>{spec.label}</label>
           <select
             value={String(value ?? '')}
@@ -123,7 +124,7 @@ function Field({
       )
     case 'number':
       return (
-        <div className="field">
+        <div className={cls('field')}>
           <label>{spec.label}</label>
           <input
             type="number"
@@ -142,7 +143,7 @@ function Field({
       )
     case 'textarea':
       return (
-        <div className="field" style={{ gridColumn: '1 / -1' }}>
+        <div className="field field-full">
           <label>{spec.label}</label>
           <textarea
             value={String(value ?? '')}
@@ -155,11 +156,11 @@ function Field({
     default:
       // string
       return (
-        <div className="field">
+        <div className={cls('field')}>
           <label>{spec.label}</label>
           <input
             type={spec.secret ? 'password' : 'text'}
-            className={spec.secret ? undefined : 'mono'}
+            className={spec.secret ? undefined : spec.mono ? 'mono' : undefined}
             value={String(value ?? '')}
             disabled={disabled}
             onChange={(e) => onChange(e.target.value)}
