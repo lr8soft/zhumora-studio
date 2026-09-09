@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 export function runMigrations(db: Database.Database): void {
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
@@ -17,6 +17,7 @@ export function runMigrations(db: Database.Database): void {
           name TEXT NOT NULL,
           path TEXT NOT NULL UNIQUE,
           size INTEGER NOT NULL,
+          kind TEXT NOT NULL DEFAULT 'model',
           arch TEXT,
           quant TEXT,
           added_at INTEGER NOT NULL
@@ -40,6 +41,13 @@ export function runMigrations(db: Database.Database): void {
         );
         CREATE INDEX idx_messages_session ON messages(session_id, created_at);
       `)
+    }
+    if (current < 2) {
+      // v1 老库的 models 表补 kind 列
+      const hasKind = db.prepare(`SELECT 1 FROM pragma_table_info('models') WHERE name = 'kind'`).get()
+      if (!hasKind) {
+        db.exec(`ALTER TABLE models ADD COLUMN kind TEXT NOT NULL DEFAULT 'model'`)
+      }
     }
     db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(
       'schema_version',

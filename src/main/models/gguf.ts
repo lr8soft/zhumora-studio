@@ -81,6 +81,10 @@ export function guessQuantFromName(fileName: string): string | undefined {
 
 export function modelInfoFromPath(filePath: string, id: string, addedAt: number): ModelInfo {
   const name = basename(filePath).replace(/\.gguf$/i, '')
+  const lower = name.toLowerCase()
+  const kind = lower.startsWith('mmproj') || lower.includes('projector') || lower.includes('clip')
+    ? ('mmproj' as const)
+    : ('model' as const)
   const header = parseGgufHeader(filePath)
   let size = 0
   try {
@@ -93,6 +97,7 @@ export function modelInfoFromPath(filePath: string, id: string, addedAt: number)
     name: header.name || name,
     path: filePath,
     size,
+    kind,
     arch: header.arch,
     quant: guessQuantFromName(name),
     addedAt

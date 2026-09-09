@@ -4,6 +4,7 @@ import type {
   ChatSession,
   LaunchParams,
   ModelInfo,
+  ModelDownloadProgress,
   RuntimeStatus,
   ServerState,
   Settings
@@ -25,6 +26,19 @@ interface ServerSlice {
 interface ModelsSlice {
   models: ModelInfo[]
   setModels: (m: ModelInfo[]) => void
+  downloads: Record<string, ModelDownload & { status: 'downloading' | 'error' }>
+  setDownload: (p: ModelDownloadProgress) => void
+  failDownload: (id: string, message: string) => void
+  clearDownload: (id: string) => void
+}
+
+interface ModelDownload {
+  id: string
+  repoId: string
+  file: string
+  done: number
+  total: number
+  speed: number
 }
 
 // ---------- chat ----------
@@ -73,6 +87,23 @@ export const useAppStore = create<AppStore>((set, get) => ({
   // models
   models: [],
   setModels: (models) => set({ models }),
+  downloads: {},
+  setDownload: (p) =>
+    set((s) => ({ downloads: { ...s.downloads, [p.id]: { ...p, status: 'downloading' } } })),
+  failDownload: (id, message) =>
+    set((s) => {
+      const cur = s.downloads[id]
+      const prev: ModelDownload = cur
+        ? { id: cur.id, repoId: cur.repoId, file: cur.file, done: cur.done, total: cur.total, speed: 0 }
+        : { id, repoId: '', file: id, done: 0, total: 0, speed: 0 }
+      return { downloads: { ...s.downloads, [id]: { ...prev, status: 'error', message } } }
+    }),
+  clearDownload: (id) =>
+    set((s) => {
+      const downloads = { ...s.downloads }
+      delete downloads[id]
+      return { downloads }
+    }),
 
   // chat
   sessions: [],
@@ -190,7 +221,13 @@ export function subscribeMainEvents(): () => void {
       })
       messages[e.sessionId] = list
       useAppStore.setState({ messages })
-    })
+    }),
+    window.zhumora.on(IpcEvent.modelProgress, (p) => useAppStore.getState().setDownload(p)),
+    window.zhumora.on(IpcEvent.modelDone, async (d) => {
+      useAppStore.getState().clearDownload(d.id)
+      await useAppStore.getState().loadModels()
+    }),
+    window.zhumora.on(IpcEvent.modelError, (e) => useAppStore.getState().failDownload(e.id, e.message))
   ]
   return () => offs.forEach((off) => off())
 }

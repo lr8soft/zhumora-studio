@@ -7,6 +7,7 @@ import { ChatRepo } from './store/chatRepo'
 import { ServerManager } from './server/ServerManager'
 import { ChatProxy } from './chat/ChatProxy'
 import { RuntimeManager } from './runtime/RuntimeManager'
+import { ModelDownloader } from './models/downloader'
 import { registerIpcHandlers, bootSequence, type AppContext } from './ipc/handlers'
 
 export interface AppServices {
@@ -25,12 +26,13 @@ export function createAppServices(): AppServices {
   const server = new ServerManager(() => settings.get())
   const chatProxy = new ChatProxy(chat, () => server.getState())
   const runtime = new RuntimeManager(join(app.getPath('userData'), 'llama'))
+  const modelDownloader = new ModelDownloader(() => settings.get())
 
   const send = (channel: string, payload: unknown): void => {
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
   }
 
-  const ctx: AppContext = { settings, models, chat, server, chatProxy, runtime, send }
+  const ctx: AppContext = { settings, models, chat, server, chatProxy, runtime, modelDownloader, send }
 
   const createWindow = (): BrowserWindow => {
     win = new BrowserWindow({

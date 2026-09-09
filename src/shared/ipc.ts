@@ -5,7 +5,12 @@ import type {
   ChatSendRequest,
   ChatSession,
   ChatTokenEvent,
+  HfFile,
+  HfModel,
   LaunchParams,
+  ModelDownloadDone,
+  ModelDownloadError,
+  ModelDownloadProgress,
   ModelInfo,
   RuntimeAsset,
   RuntimeStatus,
@@ -19,6 +24,10 @@ export const Ipc = {
   modelsList: 'models:list',
   modelsImport: 'models:import',
   modelsRemove: 'models:remove',
+  modelsSearch: 'models:search',
+  modelsRepoFiles: 'models:repo-files',
+  modelsDownload: 'models:download',
+  modelsCancelDownload: 'models:cancel-download',
   serverState: 'server:state',
   serverStart: 'server:start',
   serverStop: 'server:stop',
@@ -54,7 +63,10 @@ export const IpcEvent = {
   runtime: 'ev:runtime',
   chatToken: 'ev:chat-token',
   chatEnd: 'ev:chat-end',
-  chatError: 'ev:chat-error'
+  chatError: 'ev:chat-error',
+  modelProgress: 'ev:model-progress',
+  modelDone: 'ev:model-done',
+  modelError: 'ev:model-error'
 } as const
 
 export type IpcEventName = (typeof IpcEvent)[keyof typeof IpcEvent]
@@ -67,6 +79,9 @@ export interface IpcEventPayloads {
   [IpcEvent.chatToken]: ChatTokenEvent
   [IpcEvent.chatEnd]: ChatEndEvent
   [IpcEvent.chatError]: ChatErrorEvent
+  [IpcEvent.modelProgress]: ModelDownloadProgress
+  [IpcEvent.modelDone]: ModelDownloadDone
+  [IpcEvent.modelError]: ModelDownloadError
 }
 
 // ---------- invoke 请求/响应契约 ----------
@@ -74,6 +89,10 @@ export interface ApiModels {
   list(): Promise<ModelInfo[]>
   import(): Promise<ModelInfo[]>
   remove(id: string): Promise<void>
+  search(query: string): Promise<HfModel[]>
+  repoFiles(repoId: string): Promise<HfFile[]>
+  download(repoId: string, file: string): Promise<void>
+  cancelDownload(id: string): Promise<void>
 }
 
 export interface ApiServer {

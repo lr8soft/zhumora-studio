@@ -95,14 +95,53 @@ export interface RuntimeStatus {
 
 // ---------- models ----------
 
+export type ModelKind = 'model' | 'mmproj'
+
 export interface ModelInfo {
   id: string
   name: string
   path: string
   size: number
+  kind: ModelKind
   arch?: string
   quant?: string
   addedAt: number
+}
+
+// ---------- huggingface 下载 ----------
+
+export interface HfModel {
+  id: string
+  downloads: number
+  likes: number
+  tags: string[]
+}
+
+export interface HfFile {
+  path: string
+  size: number
+}
+
+export interface ModelDownloadProgress {
+  id: string // `${repoId}::${file}`
+  repoId: string
+  file: string
+  done: number
+  total: number
+  speed: number
+}
+
+export interface ModelDownloadDone {
+  id: string
+  repoId: string
+  file: string
+  /** 落入模型库后的路径 */
+  path: string
+}
+
+export interface ModelDownloadError {
+  id: string
+  message: string
 }
 
 // ---------- chat ----------

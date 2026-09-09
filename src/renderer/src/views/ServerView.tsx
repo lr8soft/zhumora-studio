@@ -15,6 +15,7 @@ const STATE_LABEL: Record<string, string> = {
 export default function ServerView() {
   const serverState = useAppStore((s) => s.serverState)
   const models = useAppStore((s) => s.models)
+  const mmprojs = models.filter((m) => m.kind === 'mmproj')
   const runtime = useAppStore((s) => s.runtime)
   const paramDraft = useAppStore((s) => s.paramDraft)
   const setParamDraft = useAppStore((s) => s.setParamDraft)
@@ -192,18 +193,41 @@ export default function ServerView() {
                 onChange={(e) => setParam('modelPath', e.target.value)}
               >
                 <option value="">— 从模型库选择 —</option>
-                {models.map((m) => (
+                {models
+                  .filter((m) => m.kind === 'model')
+                  .map((m) => (
+                    <option key={m.id} value={m.path}>
+                      {m.name}
+                      {m.quant ? ` (${m.quant})` : ''}
+                    </option>
+                  ))}
+              </select>
+              <button className="btn" onClick={() => void pickModelFile()}>
+                浏览…
+              </button>
+            </div>
+            <div className="hint">多模态模型（如 Qwen-VL / LLaVA）需同时指定下方 mmproj 投影文件</div>
+          </div>
+
+          {/* mmproj 选择（多模态） */}
+          {mmprojs.length > 0 && (
+            <div className="field" style={{ marginBottom: 14, maxWidth: 720 }}>
+              <label>多模态投影 mmproj（--mmproj）</label>
+              <select
+                style={{ width: '100%' }}
+                value={mmprojs.some((m) => m.path === paramDraft.mmproj) ? (paramDraft.mmproj as string) : ''}
+                onChange={(e) => setParam('mmproj', e.target.value)}
+              >
+                <option value="">— 不使用（纯文本模型） —</option>
+                {mmprojs.map((m) => (
                   <option key={m.id} value={m.path}>
                     {m.name}
                     {m.quant ? ` (${m.quant})` : ''}
                   </option>
                 ))}
               </select>
-              <button className="btn" onClick={() => void pickModelFile()}>
-                浏览…
-              </button>
             </div>
-          </div>
+          )}
 
           <ParamForm value={paramDraft} onChange={(p) => { setParamDraft(p); setParamDirty(true) }} disabled={running} />
         </div>

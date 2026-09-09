@@ -14,6 +14,8 @@ import { scanModelsDir } from '../models/scanner'
 import { ServerManager } from '../server/ServerManager'
 import { ChatProxy } from '../chat/ChatProxy'
 import { RuntimeManager } from '../runtime/RuntimeManager'
+import { ModelDownloader } from '../models/downloader'
+import { searchModels, repoFiles } from '../models/huggingface'
 
 /** 输入校验：LaunchParams 按 schema 收敛（只保留已知 key + 类型） */
 function validateParams(raw: unknown): LaunchParams {
@@ -43,11 +45,12 @@ export interface AppContext {
   server: ServerManager
   chatProxy: ChatProxy
   runtime: RuntimeManager
+  modelDownloader: ModelDownloader
   send: (channel: string, payload: unknown) => void
 }
 
 export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWindow | null): void {
-  const { settings, models, chat, server, chatProxy, runtime, send } = ctx
+  const { settings, models, chat, server, chatProxy, runtime, modelDownloader, send } = ctx
 
   // 接线事件 → renderer（事件通道用 IpcEvent，不是 invoke 的 Ipc）
   server.onState((s) => send(IpcEvent.serverState, s))
@@ -56,6 +59,13 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   chatProxy.onToken((e) => send(IpcEvent.chatToken, e))
   chatProxy.onEnd((e) => send(IpcEvent.chatEnd, e))
   chatProxy.onError((e) => send(IpcEvent.chatError, e))
+  modelDownloader.onProgress((p) => send(IpcEvent.modelProgress, p))
+  modelDownloader.onDone((d) => {
+    // 落库：扫描器识别 kind（模型 / mmproj）
+    scanModelsDir(settings.get().modelsDir, models)
+    send(IpcEvent.modelDone, d)
+  })
+  modelDownloader.onError((e) => send(IpcEvent.modelError, e))
 
   // ---------- models ----------
   ipcMain.handle(Ipc.modelsList, async () => {
@@ -102,6 +112,26 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
       }
     }
     models.remove(id)
+  })
+
+  // ---------- huggingface 搜索 / 下载 ----------
+  ipcMain.handle(Ipc.modelsSearch, async (_e, query: string) => {
+    if (typeof query !== 'string') return []
+    return searchModels(query)
+  })
+
+  ipcMain.handle(Ipc.modelsRepoFiles, async (_e, repoId: string) => {
+    if (typeof repoId !== 'string' || !repoId) return []
+    return repoFiles(repoId)
+  })
+
+  ipcMain.handle(Ipc.modelsDownload, async (_e, repoId: string, file: string) => {
+    await modelDownloader.download(repoId, file)
+    return scanModelsDir(settings.get().modelsDir, models)
+  })
+
+  ipcMain.handle(Ipc.modelsCancelDownload, async (_e, id: string) => {
+    if (typeof id === 'string') modelDownloader.cancel(id)
   })
 
   // ---------- server ----------
