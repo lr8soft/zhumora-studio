@@ -15,7 +15,8 @@ interface Props {
 const OPTION_TKEYS: Record<string, Record<string, string>> = {
   splitMode: { auto: 'params.splitModes.auto', none: 'params.splitModes.none', layer: 'params.splitModes.layer', row: 'params.splitModes.row', tensor: 'params.splitModes.tensor' },
   flashAttention: { auto: 'params.flash.auto', on: 'params.flash.on', off: 'params.flash.off' },
-  numa: { auto: 'params.numa.auto', disable: 'params.numa.disable', numa: 'params.numa.numa', dual: 'params.numa.dual', interleave: 'params.numa.interleave' }
+  numa: { auto: 'params.numa.auto', distribute: 'params.numa.distribute', isolate: 'params.numa.isolate', numactl: 'params.numa.numactl' },
+  loadMode: { auto: 'params.loadMode.auto', none: 'params.loadMode.none', mmap: 'params.loadMode.mmap', mlock: 'params.loadMode.mlock', 'mmap+mlock': 'params.loadMode.mmapMlock', dio: 'params.loadMode.dio' }
 }
 
 /** 由 launchParams schema 驱动的动态参数表单（文案走 i18n，schema 文案兜底） */

@@ -1,0 +1,168 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 1000" font-family="Segoe UI, Microsoft YaHei, sans-serif">
+  <defs>
+    <marker id="arr" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 Z" fill="#555"/>
+    </marker>
+    <marker id="arrb" markerWidth="9" markerHeight="9" refX="7" refY="3.5" orient="auto">
+      <path d="M0,0 L8,3.5 L0,7 Z" fill="#3563c4"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1280" height="1000" fill="#f7f8fb"/>
+  <text x="640" y="24" text-anchor="middle" font-size="18" font-weight="bold" fill="#1a1a2e">zhumora-studio · 软件架构图（Electron 三进程 + shared 契约层）</text>
+
+  <!-- ================= Renderer ================= -->
+  <rect x="40" y="36" width="1200" height="252" rx="12" fill="#eaf1ff" stroke="#3563c4" stroke-width="1.5"/>
+  <text x="56" y="62" font-size="14" font-weight="bold" fill="#1d3f8f">Renderer 进程 · Chromium · React 18 SPA（frameless window）</text>
+
+  <rect x="64" y="80" width="316" height="90" rx="8" fill="#ffffff" stroke="#8aa4d8"/>
+  <text x="76" y="102" font-size="12.5" font-weight="bold" fill="#333">视图层（7 views）</text>
+  <text x="76" y="124" font-size="12" fill="#444">ChatView / ServerView / ModelsView</text>
+  <text x="76" y="144" font-size="12" fill="#444">RuntimeView / KeysView / UsageView</text>
+  <text x="76" y="163" font-size="12" fill="#444">SettingsView</text>
+
+  <rect x="64" y="180" width="316" height="92" rx="8" fill="#ffffff" stroke="#8aa4d8"/>
+  <text x="76" y="202" font-size="12.5" font-weight="bold" fill="#333">组件层</text>
+  <text x="76" y="224" font-size="12" fill="#444">TitleBar / Sidebar（视图导航）</text>
+  <text x="76" y="244" font-size="12" fill="#444">ParamForm ← LAUNCH_PARAMS schema 驱动</text>
+  <text x="76" y="263" font-size="12" fill="#444">文案走 i18n，schema label 兜底</text>
+
+  <rect x="404" y="80" width="396" height="192" rx="8" fill="#ffffff" stroke="#8aa4d8"/>
+  <text x="416" y="102" font-size="12.5" font-weight="bold" fill="#333">zustand 单一 store（store/index.ts）</text>
+  <text x="416" y="126" font-size="12" fill="#444">slices: server / models / chat / keys / settings</text>
+  <text x="416" y="146" font-size="12" fill="#444">chat: messages + streaming（token 增量，结束重拉校准）</text>
+  <text x="416" y="166" font-size="12" fill="#444">init()：6 路并发 invoke 拉取初始状态</text>
+  <text x="416" y="186" font-size="12" fill="#444">subscribeMainEvents()：订阅 9 个主进程事件归并</text>
+  <text x="416" y="206" font-size="12" fill="#444">paramDraft + paramDirty：启动参数草稿 / 脏检查</text>
+  <text x="416" y="226" font-size="12" fill="#444">serverLogs 环形缓冲（cap 1000）</text>
+
+  <rect x="824" y="80" width="392" height="90" rx="8" fill="#ffffff" stroke="#8aa4d8"/>
+  <text x="836" y="102" font-size="12.5" font-weight="bold" fill="#333">i18n（react-i18next）</text>
+  <text x="836" y="124" font-size="12" fill="#444">zh / en / ja / es / fr / de · auto 跟随系统</text>
+  <text x="836" y="144" font-size="12" fill="#444">设置页切换，持久化 settings.lang</text>
+
+  <rect x="824" y="180" width="392" height="92" rx="8" fill="#ffffff" stroke="#8aa4d8"/>
+  <text x="836" y="202" font-size="12.5" font-weight="bold" fill="#333">隔离边界</text>
+  <text x="836" y="224" font-size="12" fill="#444">无 Node / Electron API 依赖（shared/ 纯类型）</text>
+  <text x="836" y="244" font-size="12" fill="#444">只经 window.zhumora（contextBridge 注入）交互</text>
+
+  <!-- IPC arrows renderer<->preload -->
+  <line x1="470" y1="288" x2="470" y2="320" stroke="#3563c4" stroke-width="2" marker-end="url(#arrb)"/>
+  <text x="458" y="310" text-anchor="end" font-size="12" fill="#3563c4">invoke 请求/响应 · 37 通道</text>
+  <line x1="810" y1="320" x2="810" y2="292" stroke="#3563c4" stroke-width="2" marker-end="url(#arrb)"/>
+  <text x="822" y="310" font-size="12" fill="#3563c4">on(IpcEvent) 推送 · 9 事件</text>
+
+  <!-- ================= Preload ================= -->
+  <rect x="40" y="324" width="1200" height="56" rx="8" fill="#fff4e0" stroke="#c98a1b" stroke-width="1.5"/>
+  <text x="640" y="347" text-anchor="middle" font-size="13" font-weight="bold" fill="#8a5a00">Preload · contextBridge — contextIsolation:on · nodeIntegration:off</text>
+  <text x="640" y="367" text-anchor="middle" font-size="12" fill="#8a5a00">暴露 window.zhumora：ZhumoraApi 类型化契约（shared/ipc.ts 单一事实源：37 invoke 通道 + 9 事件通道 + payload 类型映射）</text>
+
+  <!-- ================= Main ================= -->
+  <rect x="40" y="416" width="1200" height="364" rx="12" fill="#eef7f0" stroke="#2f9e5f" stroke-width="1.5"/>
+  <text x="56" y="442" font-size="14" font-weight="bold" fill="#1c6b3f">Main 进程 · Node — 全部业务逻辑 / 持久化 / 外部集成</text>
+
+  <rect x="64" y="460" width="248" height="76" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="76" y="482" font-size="12.5" font-weight="bold" fill="#333">composition.ts · 组合根</text>
+  <text x="76" y="504" font-size="12" fill="#444">new 全部服务 + 闭包注入</text>
+  <text x="76" y="524" font-size="12" fill="#444">（getSettings / getServerState）</text>
+
+  <rect x="64" y="552" width="248" height="204" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="76" y="574" font-size="12.5" font-weight="bold" fill="#333">ipc/handlers.ts · 适配层</text>
+  <text x="76" y="598" font-size="12" fill="#444">ipcMain.handle × 37</text>
+  <text x="76" y="618" font-size="12" fill="#444">validateParams 按 schema 收敛输入</text>
+  <text x="76" y="638" font-size="12" fill="#444">事件 → webContents.send 转发</text>
+  <text x="76" y="658" font-size="12" fill="#444">bootSequence 启动自检</text>
+  <text x="76" y="682" font-size="11.5" fill="#b45309">⚠ 混入模型导入/删除等文件业务</text>
+  <text x="76" y="700" font-size="11.5" fill="#b45309">⚠ chat 写入通道缺输入校验</text>
+
+  <rect x="344" y="460" width="308" height="96" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="356" y="482" font-size="12.5" font-weight="bold" fill="#333">ServerManager</text>
+  <text x="356" y="504" font-size="12" fill="#444">spawn llama-server · stdio 日志尾</text>
+  <text x="356" y="524" font-size="12" fill="#444">HTTP 健康轮询（120s 加载宽限）</text>
+  <text x="356" y="544" font-size="12" fill="#444">状态机 stopped→starting→ready/error</text>
+
+  <rect x="344" y="572" width="308" height="96" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="356" y="594" font-size="12.5" font-weight="bold" fill="#333">ChatProxy</text>
+  <text x="356" y="616" font-size="12" fill="#444">fetch SSE /v1/chat/completions</text>
+  <text x="356" y="636" font-size="12" fill="#444">逐 token 事件 · abort 保留部分内容</text>
+  <text x="356" y="656" font-size="12" fill="#444">usage / tokens·s 落库（ChatRepo）</text>
+
+  <rect x="684" y="460" width="268" height="96" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="696" y="482" font-size="12.5" font-weight="bold" fill="#333">RuntimeManager + github + detect</text>
+  <text x="696" y="504" font-size="12" fill="#444">GPU 探测（wmic / nvidia-smi）</text>
+  <text x="696" y="524" font-size="12" fill="#444">pickVariant：cuda/rocm/vulkan/cpu</text>
+  <text x="696" y="544" font-size="12" fill="#444">下载→解压→verifyBinary(--version)</text>
+
+  <rect x="684" y="572" width="268" height="96" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="696" y="594" font-size="12.5" font-weight="bold" fill="#333">ModelDownloader + models/*</text>
+  <text x="696" y="616" font-size="12" fill="#444">scanner / gguf 头解析 / huggingface</text>
+  <text x="696" y="636" font-size="12" fill="#444">多任务并发 · .part 续传</text>
+  <text x="696" y="656" font-size="12" fill="#444">下载完 → 重新扫描 → 按路径 upsert</text>
+
+  <rect x="344" y="692" width="308" height="64" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="356" y="712" font-size="12.5" font-weight="bold" fill="#333">download/Downloader.ts · 统一下载基建</text>
+  <text x="356" y="732" font-size="12" fill="#444">续传(.part) / sha256 / AbortController</text>
+  <text x="356" y="748" font-size="11.5" fill="#888">Runtime / Model 下载共用</text>
+
+  <rect x="684" y="692" width="268" height="64" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="696" y="712" font-size="12.5" font-weight="bold" fill="#333">SettingsStore</text>
+  <text x="696" y="732" font-size="12" fill="#444">settings.json · normalizeSettings 边界迁移</text>
+  <text x="696" y="748" font-size="11.5" fill="#888">闭包 getSettings() 注入 Server/Chat/Model</text>
+
+  <rect x="984" y="460" width="232" height="296" rx="8" fill="#ffffff" stroke="#7cc79a"/>
+  <text x="996" y="484" font-size="12.5" font-weight="bold" fill="#333">store/ · 仓库层</text>
+  <text x="996" y="508" font-size="12" fill="#444">ModelsRepo / ChatRepo</text>
+  <text x="996" y="528" font-size="12" fill="#444">KeysRepo / UsageRepo</text>
+  <line x1="996" y1="544" x2="1204" y2="544" stroke="#d0d8e0"/>
+  <text x="996" y="566" font-size="12" fill="#444">better-sqlite3（WAL 模式）</text>
+  <text x="996" y="586" font-size="12" fill="#444">migrations v3（版本化迁移）</text>
+  <text x="996" y="606" font-size="12" fill="#444">zhumora-studio.db</text>
+  <line x1="996" y1="622" x2="1204" y2="622" stroke="#d0d8e0"/>
+  <text x="996" y="644" font-size="11.5" fill="#888">会话 / 消息 / 密钥 / 用量</text>
+  <text x="996" y="662" font-size="11.5" fill="#888">渲染层以其为真相源</text>
+  <text x="996" y="680" font-size="11.5" fill="#888">（chatEnd 后重拉校准）</text>
+
+  <!-- internal wiring -->
+  <line x1="188" y1="536" x2="188" y2="548" stroke="#888" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="312" y1="498" x2="340" y2="498" stroke="#888" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="312" y1="620" x2="340" y2="620" stroke="#888" stroke-width="1.5" stroke-dasharray="4 3" marker-end="url(#arr)"/>
+
+  <!-- Main -> external arrows -->
+  <line x1="430" y1="780" x2="430" y2="832" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="420" y="812" text-anchor="end" font-size="12" fill="#555">spawn · stdio · /health 轮询</text>
+  <line x1="590" y1="780" x2="590" y2="832" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="580" y="812" text-anchor="end" font-size="12" fill="#555">HTTP · SSE 流式</text>
+  <line x1="740" y1="780" x2="740" y2="832" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="730" y="812" text-anchor="end" font-size="12" fill="#555">releases API + 资产下载</text>
+  <line x1="880" y1="780" x2="880" y2="832" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="870" y="812" text-anchor="end" font-size="12" fill="#555">搜索 + 文件下载</text>
+  <line x1="1080" y1="780" x2="1080" y2="832" stroke="#555" stroke-width="2" marker-end="url(#arr)"/>
+  <text x="1070" y="812" text-anchor="end" font-size="12" fill="#555">读写</text>
+
+  <!-- ================= External ================= -->
+  <rect x="344" y="836" width="308" height="112" rx="10" fill="#f1f1f6" stroke="#7c7c92" stroke-width="1.5"/>
+  <text x="356" y="860" font-size="12.5" font-weight="bold" fill="#333">llama-server · 子进程</text>
+  <text x="356" y="884" font-size="12" fill="#444">OpenAI 兼容 HTTP API</text>
+  <text x="356" y="906" font-size="12" fill="#444">SSE 流式 · /health 端点</text>
+  <text x="356" y="928" font-size="12" fill="#444">（CUDA / ROCm / Vulkan / CPU 构建）</text>
+
+  <rect x="684" y="836" width="130" height="112" rx="10" fill="#f1f1f6" stroke="#7c7c92" stroke-width="1.5"/>
+  <text x="696" y="860" font-size="12.5" font-weight="bold" fill="#333">GitHub</text>
+  <text x="696" y="884" font-size="12" fill="#444">Releases</text>
+  <text x="696" y="906" font-size="12" fill="#444">bin-win 资产</text>
+  <text x="696" y="928" font-size="12" fill="#444">+ cudart 伴生包</text>
+
+  <rect x="830" y="836" width="122" height="112" rx="10" fill="#f1f1f6" stroke="#7c7c92" stroke-width="1.5"/>
+  <text x="842" y="860" font-size="12.5" font-weight="bold" fill="#333">HuggingFace</text>
+  <text x="842" y="884" font-size="12" fill="#444">模型搜索</text>
+  <text x="842" y="906" font-size="12" fill="#444">resolve 文件</text>
+  <text x="842" y="928" font-size="12" fill="#444">直连下载</text>
+
+  <rect x="984" y="836" width="232" height="112" rx="10" fill="#f1f1f6" stroke="#7c7c92" stroke-width="1.5"/>
+  <text x="996" y="860" font-size="12.5" font-weight="bold" fill="#333">本地磁盘 · userData/</text>
+  <text x="996" y="884" font-size="12" fill="#444">zhumora-studio.db · settings.json</text>
+  <text x="996" y="906" font-size="12" fill="#444">models/*.gguf（含 mmproj）</text>
+  <text x="996" y="928" font-size="12" fill="#444">llama/（运行时二进制 + dll）</text>
+
+  <text x="640" y="980" text-anchor="middle" font-size="12" fill="#666">箭头：跨进程 IPC（invoke 向下 / 事件向上）· 跨系统调用（HTTP / spawn）；框内省略进程内依赖（组合根 DI + 闭包注入）</text>
+</svg>

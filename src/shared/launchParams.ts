@@ -246,22 +246,22 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
     advanced: true
   },
   {
-    key: 'mlock',
-    flag: '--mlock',
-    label: '锁定内存 (mlock)',
+    key: 'loadMode',
+    flag: '--load-mode',
+    label: '模型加载模式',
     category: 'performance',
-    type: 'boolean',
-    default: false,
-    advanced: true
-  },
-  {
-    key: 'noMmap',
-    flag: '--no-mmap',
-    label: '禁用 mmap',
-    category: 'performance',
-    type: 'boolean',
-    default: false,
-    advanced: true
+    type: 'select',
+    default: '',
+    options: [
+      { value: '', label: '自动 (auto)' },
+      { value: 'none', label: '普通加载 (none)' },
+      { value: 'mmap', label: '内存映射 (mmap)' },
+      { value: 'mlock', label: '锁定内存 (mlock)' },
+      { value: 'mmap+mlock', label: 'mmap + 锁定内存' },
+      { value: 'dio', label: 'DirectIO (dio)' }
+    ],
+    advanced: true,
+    hint: 'b10936 起 --mlock/--no-mmap 已移除，统一为 --load-mode。mlock = 模型常驻 RAM 不换页'
   },
   {
     key: 'numa',
@@ -272,10 +272,9 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
     default: '',
     options: [
       { value: '', label: '自动' },
-      { value: 'disable', label: '禁用' },
-      { value: 'numa', label: '隔离' },
-      { value: 'dual', label: '双路' },
-      { value: 'interleave', label: '交错' }
+      { value: 'distribute', label: '分布 (distribute)' },
+      { value: 'isolate', label: '隔离 (isolate)' },
+      { value: 'numactl', label: '按 numactl (numactl)' }
     ],
     advanced: true
   },

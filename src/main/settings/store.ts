@@ -8,7 +8,20 @@ export const SETTINGS_SCHEMA_VERSION = 1
 
 const APP_LANGS: AppLang[] = ['auto', 'en', 'zh', 'ja', 'es', 'fr', 'de']
 
-/** 边界归一化：schemaVersion 补默认值，唯一入口 */
+/** 旧版 mlock/noMmap 两个布尔 → b10936 统一的 loadMode（迁移后删除旧键） */
+function migrateLoadMode(p: LaunchParams): LaunchParams {
+  if (p.loadMode === undefined && (p.mlock !== undefined || p.noMmap !== undefined)) {
+    if (p.mlock && p.noMmap) p.loadMode = 'mmap+mlock'
+    else if (p.mlock) p.loadMode = 'mlock'
+    else if (p.noMmap) p.loadMode = 'none'
+    else p.loadMode = ''
+    delete p.mlock
+    delete p.noMmap
+  }
+  return p
+}
+
+/** 边界归一化：schemaVersion 补默认值 + 参数结构迁移，唯一入口 */
 export function normalizeSettings(raw: unknown): Settings {
   const r = (raw ?? {}) as Partial<Settings>
   return {
@@ -21,7 +34,7 @@ export function normalizeSettings(raw: unknown): Settings {
       variant: typeof r.runtime?.variant === 'string' ? r.runtime.variant : '',
       autoUpdate: Boolean(r.runtime?.autoUpdate)
     },
-    lastParams: { ...defaultParams(), ...(r.lastParams as LaunchParams ?? {}) },
+    lastParams: migrateLoadMode({ ...defaultParams(), ...(r.lastParams as LaunchParams ?? {}) }),
     theme: r.theme === 'light' || r.theme === 'dark' ? r.theme : 'system',
     fontSize: typeof r.fontSize === 'number' && r.fontSize >= 13 && r.fontSize <= 18 ? r.fontSize : 15,
     lang: typeof r.lang === 'string' && (APP_LANGS as string[]).includes(r.lang) ? (r.lang as AppLang) : 'auto'

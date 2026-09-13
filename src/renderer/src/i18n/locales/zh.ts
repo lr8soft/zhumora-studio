@@ -262,8 +262,7 @@ export default {
       flashAttention: 'Flash Attention',
       cacheK: 'K Cache 类型',
       cacheV: 'V Cache 类型',
-      mlock: '锁定内存 (mlock)',
-      noMmap: '禁用 mmap',
+      loadMode: '模型加载模式 (load-mode)',
       numa: 'NUMA',
       temp: 'Temperature',
       topK: 'Top-k',
@@ -309,10 +308,17 @@ export default {
     cacheAuto: '自动 (f16)',
     numa: {
       auto: '自动',
-      disable: '禁用',
-      numa: '隔离',
-      dual: '双路',
-      interleave: '交错'
+      distribute: '分布 (distribute)',
+      isolate: '隔离 (isolate)',
+      numactl: '按 numactl (numactl)'
+    },
+    loadMode: {
+      auto: '自动 (auto)',
+      none: '普通加载 (none)',
+      mmap: '内存映射 (mmap)',
+      mlock: '锁定内存 (mlock)',
+      mmapMlock: 'mmap + 锁定内存',
+      dio: 'DirectIO (dio)'
     }
   }
 }

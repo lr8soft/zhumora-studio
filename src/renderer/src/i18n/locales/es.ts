@@ -262,8 +262,7 @@ export default {
       flashAttention: 'Flash Attention',
       cacheK: 'Tipo de cache K',
       cacheV: 'Tipo de cache V',
-      mlock: 'Fijar memoria (mlock)',
-      noMmap: 'Desactivar mmap',
+      loadMode: 'Modo de carga del modelo (load-mode)',
       numa: 'NUMA',
       temp: 'Temperature',
       topK: 'Top-k',
@@ -309,10 +308,17 @@ export default {
     cacheAuto: 'Auto (f16)',
     numa: {
       auto: 'Auto',
-      disable: 'Desactivar',
-      numa: 'Aislar',
-      dual: 'Dual',
-      interleave: 'Interleaved'
+      distribute: 'Distribuir',
+      isolate: 'Aislar',
+      numactl: 'numactl'
+    },
+    loadMode: {
+      auto: 'Auto',
+      none: 'Normal (none)',
+      mmap: 'Memoria mapeada (mmap)',
+      mlock: 'Fijar en RAM (mlock)',
+      mmapMlock: 'mmap + fijo',
+      dio: 'DirectIO (dio)'
     }
   }
 }

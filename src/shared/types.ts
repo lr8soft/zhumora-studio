@@ -78,6 +78,8 @@ export interface RuntimeAsset {
   size: number
   sha256?: string
   url: string
+  /** CUDA 变体的运行时 dll 伴生包（cudart/cublas），需与主包解到同一目录 */
+  companion?: { name: string; url: string; size: number; sha256?: string }
 }
 
 export interface RuntimeProgress {

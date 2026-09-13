@@ -2,7 +2,7 @@ import { execFile } from 'child_process'
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, createWriteStream } from 'fs'
 import { join, dirname } from 'path'
 import yauzl from 'yauzl'
-import { downloadFile } from '../download/Downloader'
+import { downloadFile, type DownloadOptions } from '../download/Downloader'
 import { fetchWinAssets } from './github'
 import { pickVariant, probeGpu } from './detect'
 import type { RuntimeAsset, RuntimeStatus } from '@shared/types'
@@ -118,7 +118,7 @@ export class RuntimeManager {
       const zipPath = join(dir, asset.name)
 
       this.emit({ state: 'downloading', progress: { done: 0, total: asset.size, speed: 0, phase: 'downloading' } })
-      await downloadFile({
+      await downloadWithRetry({
         url: asset.url,
         dest: zipPath,
         expectedSha256: asset.sha256,
@@ -136,8 +136,30 @@ export class RuntimeManager {
         // ignore
       }
 
+      // CUDA 变体的运行时 dll（cudart/cublas）在独立伴生包，需解到同一目录
+      if (asset.companion) {
+        this.emit({ state: 'downloading', progress: { done: 0, total: asset.companion.size, speed: 0, phase: 'downloading' } })
+        const compPath = join(dir, asset.companion.name)
+        await downloadWithRetry({
+          url: asset.companion.url,
+          dest: compPath,
+          expectedSha256: asset.companion.sha256,
+          signal: this.abort.signal,
+          onProgress: (p) => this.emit({ progress: { ...p, phase: 'downloading' } })
+        })
+        await extractZip(compPath, dir, () => {})
+        try {
+          unlinkSync(compPath)
+        } catch {
+          // ignore
+        }
+      }
+
       const binary = findBinary(dir)
       if (!binary) throw new Error('解压完成但未找到 llama-server.exe')
+
+      // 验证二进制可执行（--version 探测；失败 = DLL 缺失/架构不符/损坏）
+      await verifyBinary(binary)
       const manifest: Manifest = {
         version: asset.version,
         variant: asset.variant,
@@ -276,6 +298,27 @@ function extractZip(
       zip.readEntry()
     })
   })
+}
+
+/**
+ * 下载，遇到 RESUME_WITH_HASH（续传分块无法校验 hash）删 .part 从头重下一次。
+ * 其余错误原样抛出。
+ */
+async function downloadWithRetry(opts: DownloadOptions): Promise<void> {
+  try {
+    await downloadFile(opts)
+  } catch (err) {
+    if ((err as Error).message === 'RESUME_WITH_HASH') {
+      try {
+        unlinkSync(opts.dest + '.part')
+      } catch {
+        // ignore
+      }
+      await downloadFile(opts)
+    } else {
+      throw err
+    }
+  }
 }
 
 /** 验证二进制可执行（--version 快速探测） */

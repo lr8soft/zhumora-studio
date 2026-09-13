@@ -66,7 +66,9 @@ export class ChatProxy {
     const body: Record<string, unknown> = {
       model: server.modelPath ?? 'local',
       messages: req.messages,
-      stream: true
+      stream: true,
+      // llama.cpp server 默认 include_usage=false，不传则流式 chunk 永不带 usage
+      stream_options: { include_usage: true }
     }
     const ov = req.overrides ?? {}
     if (ov.temperature !== undefined) body.temperature = ov.temperature

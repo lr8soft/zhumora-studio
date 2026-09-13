@@ -32,8 +32,25 @@ test('buildArgs: boolean false 省略 / true 出现', () => {
   assert.ok(!args.includes('--jinja'))
   p.jinja = true
   assert.ok(buildArgs(p).includes('--jinja'))
-  p.noMmap = true
-  assert.ok(buildArgs(p).includes('--no-mmap'))
+  p.ignoreEos = true
+  assert.ok(buildArgs(p).includes('--ignore-eos'))
+})
+
+test('buildArgs: loadMode select 序列化 / 空值省略', () => {
+  const p = defaultParams()
+  assert.ok(!buildArgs(p).includes('--load-mode')) // 默认空 → 不出现
+  p.loadMode = 'mmap+mlock'
+  const args = buildArgs(p)
+  assert.equal(args[args.indexOf('--load-mode') + 1], 'mmap+mlock')
+  p.loadMode = 'mlock'
+  assert.equal(buildArgs(p)[buildArgs(p).indexOf('--load-mode') + 1], 'mlock')
+})
+
+test('buildArgs: numa 仅接受合法值', () => {
+  const p = defaultParams()
+  p.numa = 'isolate'
+  const args = buildArgs(p)
+  assert.equal(args[args.indexOf('--numa') + 1], 'isolate')
 })
 
 test('buildArgs: extraArgs 空白分词追加在末尾', () => {
@@ -100,8 +117,8 @@ test('pickVariant: arm64 架构过滤', () => {
 
 function mkAsset(variant: string, arch = 'x64'): RuntimeAsset {
   return {
-    name: `llama-b10835-bin-win-${variant}-${arch}.zip`,
-    version: 'b10835',
+    name: `llama-b10936-bin-win-${variant}-${arch}.zip`,
+    version: 'b10936',
     variant,
     arch,
     size: 1,
