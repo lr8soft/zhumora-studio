@@ -13,7 +13,9 @@ npm run dev        # electron-vite dev（开发）
 npm test           # node --test tests/*.test.ts（纯函数单测）
 npx tsc --noEmit   # 类型检查
 npm run build      # electron-vite build
-npm run build:win  # win 打包（electron-builder nsis）
+npm run build:win  # win 打包（nsis，x64 + arm64）
+npm run build:mac  # mac 打包（dmg，x64 + arm64）
+npm run build:linux  # linux 打包（AppImage + deb，x64 + arm64）
 ```
 
 提交前必过：`tsc --noEmit` + `npm test` + `npm run build`。
@@ -134,6 +136,5 @@ main 进程代码**不得假设单平台**。参照实现：`main/server/status.
 | `main/runtime/github.ts` | 仅 bin-win asset 正则 + cudart 伴生包 | 抽 platform 策略 |
 | `main/runtime/RuntimeManager.ts` | 二进制名 `llama-server.exe`、仅 zip 解压 | 抽 platform 策略 |
 | `main/ipc/handlers.ts` | `system:pick-binary` 对话框 filter 含 `.exe` | 按平台给 filter（无副作用，低优先级） |
-| `package.json` | 无 mac/linux 打包目标 | 补 target |
 
 已合规的参照实现：`main/server/status.ts`、`main/runtime/detect.ts`。

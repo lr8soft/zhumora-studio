@@ -19,13 +19,15 @@
 | LLM 后端 | llama.cpp **运行时页手动下载**：GitHub API 拉最新 nightly → GPU 探测推荐变体 → 流式下载 + sha256 + 解压；设置里可覆盖为自定义二进制（离线逃生舱） | 不捆绑、包体小；GPU 用户自动拿到正确构建 |
 | 模型源 | 本地目录导入 + HuggingFace 搜索/流式下载（断点续传、多任务并发） | 下载带 `.part` 续传与进度事件 |
 | HTTP | Node ≥22 原生 fetch | 直接打本地/远端 HTTP，无 axios |
-| 打包 | electron-builder nsis（当前仅 win），`signExecutable: false` | 三平台目标见 §7.2-E |
+| 打包 | electron-builder：win nsis（x64/arm64）、mac dmg（x64/arm64）、linux AppImage+deb（x64/arm64）；win `signExecutable: false` | 三平台目标见 §7.2-E |
 
 ## 2. 目录结构
 
 ```
 zhumora-studio/
-├── ARCHITECTURE.md
+├── README.md（中文默认） / README.en.md
+├── ARCHITECTURE.md / DEVELOPMENT.md
+├── imgs/                         # 宣传截图（README 展示用）
 ├── package.json / electron.vite.config.ts / tsconfig*.json
 ├── tests/                        # node --test，纯函数单测（buildArgs / pickVariant）
 └── src/
@@ -248,7 +250,7 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 ## 5. 打包与分发
 
 - 应用包**不捆绑** llama.cpp（运行时下载，见 §3.4），包体小；`yauzl` 入包（流式解压），`better-sqlite3` asarUnpack。
-- 当前 `build:win`（nsis）。macOS/Linux 打包目标见 §7.2-E。
+- 三平台打包：`build:win`（nsis，x64/arm64）、`build:mac`（dmg，x64/arm64）、`build:linux`（AppImage + deb，x64/arm64），产物输出 `release/`。
 - 首次启动自检：runtime manifest 缺失 → 进入下载流程；二进制在但 `--version` 失败 → 报错并给"手动指定路径"。
 
 ## 6. 里程碑
@@ -259,7 +261,7 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 | M1 核心 | 运行时获取（GitHub + GPU 探测 + 下载/校验/解压）、模型扫描/导入、参数 schema + ParamForm、ServerManager 状态机、反向代理、日志面板、优雅退出 | ✅ |
 | M2 聊天 | ChatProxy SSE、ChatView、usage/tokens-s、会话持久化、密钥管理、用量统计 | ✅ |
 | M3 下载 | HF 搜索 + 流式下载 + 断点续传 + 进度 UI + 多任务并发 | ✅ |
-| M4 增强 | 三平台运行时获取（Linux/macOS asset 流程）、三平台打包、多 server profile、runtime autoUpdate | ⬜ 见 §7.2-D |
+| M4 增强 | 三平台运行时获取（Linux/macOS asset 流程）、多 server profile、runtime autoUpdate | ⬜ 见 §7.2-D（三平台打包目标已配置） |
 
 ## 7. 开发规范
 
@@ -322,7 +324,7 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 
 **E. 打包与发布**
 
-- electron-builder 需补 `mac`（dmg，arm64+x64 双架构）与 `linux`（AppImage + deb）目标；`better-sqlite3` 是原生模块，三平台各自重建（electron-builder 默认行为，CI 按平台跑）。
+- electron-builder 三平台目标已配置（`package.json` build 段 + `build:win` / `build:mac` / `build:linux` 脚本）：win nsis、mac dmg（x64+arm64）、linux AppImage + deb（x64+arm64）。`better-sqlite3` 是原生模块，三平台各自重建（electron-builder 默认行为，CI 按平台跑）。
 - Linux 无代码签名；macOS 需 notarization（发布阶段处理）。
 
 **F. 验证要求**
@@ -337,7 +339,6 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 | `runtime/github.ts` | 仅 bin-win asset 正则与 cudart 伴生包逻辑 |
 | `runtime/RuntimeManager.ts` | 二进制名 `llama-server.exe`、yauzl 仅 zip |
 | `ipc/handlers.ts` | `system:pick-binary` 对话框 filter 含 `.exe`（无副作用，Linux/macOS 忽略该扩展即可） |
-| `package.json` | 无 mac/linux 打包目标 |
 
 `status.ts`、`detect.ts` 已按 §7.2-A 实现三平台分支，作为其余模块的参照实现。
 
