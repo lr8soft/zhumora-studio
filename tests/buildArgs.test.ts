@@ -36,6 +36,14 @@ test('buildArgs: boolean false 省略 / true 出现', () => {
   assert.ok(buildArgs(p).includes('--ignore-eos'))
 })
 
+test('buildArgs: chatTemplateFile 序列化 / 空值省略', () => {
+  const p = defaultParams()
+  assert.ok(!buildArgs(p).includes('--chat-template-file'))
+  p.chatTemplateFile = 'D:/templates/tpl.jinja'
+  const args = buildArgs(p)
+  assert.equal(args[args.indexOf('--chat-template-file') + 1], 'D:/templates/tpl.jinja')
+})
+
 test('buildArgs: loadMode select 序列化 / 空值省略', () => {
   const p = defaultParams()
   assert.ok(!buildArgs(p).includes('--load-mode')) // 默认空 → 不出现

@@ -313,16 +313,16 @@ export default {
       repeatPenalty: 'Wiederholungsstrafe',
       seed: 'Zufallssaat',
       ignoreEos: 'EOS ignorieren',
-      quant: 'Quantisierung',
-      quantPh: 'Optionaler Filter: q4_k_m / q5_k_m / q8_0 / f16 …'
+      chatTemplateFile: 'Externe Template-Datei'
     },
     hints: {
       corsOrigins: 'Erlaubte Cross-Origin-Quellen (kommagetrennt); * = alle (braucht API-Key)',
       threadsHttp: '-1 = automatisch',
       modelFile: 'Aus der Bibliothek wählen oder .gguf-Pfad eingeben',
-      jinja: 'Eingebaute Chat-Vorlage des Modells verwenden (empfohlen)',
+      jinja: 'Jinja-Template-Engine aktivieren (empfohlen); externe Vorlage über „Externe Template-Datei“',
+      chatTemplateFile: 'Vorlage aus externer .jinja-Datei laden, um die eingebaute zu überschreiben (Jinja muss aktiviert sein); leer = eingebaut',
       ctxSize: 'Kontextlänge in Tokens. 0 = Trainingskontext des Modells. Für lange Gespräche erhöhen; KV-Speicher beachten.',
-      chatTemplate: 'Eingebautes Jinja-Template überschreiben; normalerweise leer',
+      chatTemplate: 'Jinja-Template als Zeichenkette einfügen, um das eingebaute zu überschreiben; normalerweise leer (für Dateien „Externe Template-Datei“ verwenden)',
       nGpuLayers: '0 = komplett CPU; 999 = komplett GPU (braucht passende GPU-Build)',
       threads: '0 = automatisch (Physikalische Kerne)',
       splitMode: 'Wie Gewichte auf GPUs verteilt werden; bei einer GPU ignorieren',
@@ -333,7 +333,6 @@ export default {
       minP: '0.0 = deaktiviert',
       repeatPenalty: '1.0 = deaktiviert',
       seed: '-1 = jedes Mal zufällig',
-      quant: 'Nur Modelle mit dieser Quantisierung; leer = alle'
     },
     splitModes: {
       auto: 'Auto',

@@ -313,16 +313,16 @@ export default {
       repeatPenalty: 'Penalización de repetición',
       seed: 'Semilla aleatoria',
       ignoreEos: 'Ignorar EOS',
-      quant: 'Cuantización',
-      quantPh: 'Filtro opcional: q4_k_m / q5_k_m / q8_0 / f16 …'
+      chatTemplateFile: 'Ruta de plantilla externa'
     },
     hints: {
       corsOrigins: 'Orígenes cruzados permitidos (separados por comas); * = todos (requiere API key)',
       threadsHttp: '-1 = auto',
       modelFile: 'Elige de la biblioteca o escribe una ruta .gguf',
-      jinja: 'Usar la plantilla de chat integrada del modelo (recomendado)',
+      jinja: 'Activar el motor de plantillas jinja (recomendado); la externa se indica en «Ruta de plantilla externa»',
+      chatTemplateFile: 'Cargar una plantilla desde un archivo .jinja externo para sobrescribir la integrada (requiere Jinja activado); vacío = integrada',
       ctxSize: 'Longitud de contexto en tokens. 0 = contexto de entrenamiento del modelo. Súbelo para conversaciones largas; cuida la memoria KV.',
-      chatTemplate: 'Sobrescribir la plantilla jinja integrada; normalmente vacío',
+      chatTemplate: 'Pegar una cadena de plantilla jinja para sobrescribir la integrada; normalmente vacío (usa «Ruta de plantilla externa» para archivos)',
       nGpuLayers: '0 = todo CPU; 999 = todo GPU (requiere build GPU correspondiente)',
       threads: '0 = auto (núcleos físicos)',
       splitMode: 'Cómo repartir pesos entre GPUs; ignora con una sola GPU',
@@ -333,7 +333,6 @@ export default {
       minP: '0.0 = desactivado',
       repeatPenalty: '1.0 = desactivado',
       seed: '-1 = aleatoria cada vez',
-      quant: 'Solo modelos con esta cuantización; vacío = todos'
     },
     splitModes: {
       auto: 'Auto',

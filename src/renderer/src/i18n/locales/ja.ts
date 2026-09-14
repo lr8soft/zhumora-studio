@@ -313,16 +313,16 @@ export default {
       repeatPenalty: 'リピートペナルティ',
       seed: '乱数シード',
       ignoreEos: 'EOS を無視',
-      quant: '量子化',
-      quantPh: '任意のフィルタ：q4_k_m / q5_k_m / q8_0 / f16 …'
+      chatTemplateFile: '外部テンプレートファイル'
     },
     hints: {
       corsOrigins: '許可するクロスオリジン（カンマ区切り）；* = 全て（API キーと併用必須）',
       threadsHttp: '-1 = 自動',
       modelFile: 'ライブラリから選択、または .gguf パスを直接入力',
-      jinja: 'モデル内蔵の chat template を使用（推奨）',
+      jinja: 'jinja テンプレートエンジンを有効化（推奨）；外部テンプレートは「外部テンプレートファイル」で指定',
+      chatTemplateFile: '外部 .jinja ファイルからテンプレートを読み込み、内蔵を上書き（Jinja テンプレートの有効化が必要）；空欄 = 内蔵を使用',
       ctxSize: 'コンテキスト長（トークン数）。0 = モデル学習時の長さ。長い会話では増加可能、KV メモリに注意',
-      chatTemplate: '内蔵 jinja テンプレートを上書き。通常は空欄',
+      chatTemplate: 'jinja テンプレートの文字列を貼り付けて内蔵を上書き。通常は空欄（ファイルは「外部テンプレートファイル」を使用）',
       nGpuLayers: '0 = 全て CPU；999 = 全て GPU（対応 GPU ビルド必要）',
       threads: '0 = 自動（物理コア数）',
       splitMode: '複数 GPU で重みをどう分割するか；単一 GPU では無視可能',
@@ -333,7 +333,6 @@ export default {
       minP: '0.0 = 無効',
       repeatPenalty: '1.0 = 無効',
       seed: '-1 = 毎回ランダム',
-      quant: 'この量子化に一致するモデルのみ表示；空欄 = 全て'
     },
     splitModes: {
       auto: '自動',

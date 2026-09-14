@@ -205,7 +205,6 @@ function Field({
           <input
             type={spec.secret ? 'password' : 'text'}
             className={spec.secret ? undefined : spec.mono ? 'mono' : undefined}
-            placeholder={spec.key === 'quant' ? t('params.labels.quantPh') : undefined}
             value={String(value ?? '')}
             disabled={disabled}
             onChange={(e) => onChange(e.target.value)}

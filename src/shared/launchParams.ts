@@ -75,22 +75,25 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
     hint: '从模型库选择，或手动输入 .gguf 路径'
   },
   {
-    key: 'quant',
-    flag: '',
-    label: '量化',
-    category: 'model',
-    type: 'string',
-    default: '',
-    hint: '仅过滤模型库显示（不参与启动命令）；如 q4_k_m / q5_k_m / q8_0 / f16，留空 = 全部'
-  },
-  {
     key: 'jinja',
     flag: '--jinja',
     label: 'Jinja 模板',
     category: 'model',
     type: 'boolean',
     default: true,
-    hint: '使用模型内置 chat template（推荐开启）'
+    hint: '启用 jinja 模板引擎（推荐开启）；外部模板在“外部模板文件”指定'
+  },
+  {
+    key: 'chatTemplateFile',
+    flag: '--chat-template-file',
+    label: '外部模板文件',
+    category: 'model',
+    type: 'string',
+    default: '',
+    advanced: true,
+    fullWidth: true,
+    mono: true,
+    hint: '从外部 .jinja 文件读取模板，覆盖模型内置（需同时开启 Jinja 模板）；留空 = 用模型内置'
   },
   {
     key: 'ctxSize',
@@ -117,12 +120,13 @@ export const LAUNCH_PARAMS: ParamSpec[] = [
   {
     key: 'chatTemplate',
     flag: '--chat-template',
-    label: 'Chat Template',
+    label: 'Chat Template（内联）',
     category: 'model',
     type: 'string',
     default: '',
     advanced: true,
-    hint: '覆盖内置 jinja 模板，一般留空'
+    fullWidth: true,
+    hint: '直接粘贴 jinja 模板字符串覆盖内置模板，一般留空；外部文件用“外部模板文件”'
   },
 
   // ---------- performance ----------

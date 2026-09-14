@@ -1,8 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 import { useAppStore } from '../store'
 import ParamForm from '../components/ParamForm'
 import { useTranslation } from 'react-i18next'
-import { quantFromPath } from '@shared/hfutil'
 import type { LaunchParams } from '@shared/types'
 import { buildArgs } from '@shared/buildArgs'
 
@@ -77,13 +76,7 @@ export default function ServerView() {
     setParamDirty(true)
   }
 
-  // 模型库下拉：按量化过滤（quant 参数，纯 UI）
-  const quantFilter = String(paramDraft.quant ?? '').trim().toLowerCase()
-  const modelChoices = useMemo(() => {
-    const all = models.filter((m) => m.kind === 'model')
-    if (!quantFilter) return all
-    return all.filter((m) => (m.quant ?? quantFromPath(m.path) ?? '').toLowerCase() === quantFilter)
-  }, [models, quantFilter])
+  const modelChoices = models.filter((m) => m.kind === 'model')
 
   const endpoint = serverState.host ? `http://${serverState.host}:${serverState.port}/v1` : ''
 
@@ -219,18 +212,12 @@ export default function ServerView() {
                   onChange={(e) => setParam('modelPath', e.target.value)}
                 >
                   <option value="">{t('server.pickFromLib')}</option>
-                  {modelChoices
-                    .map((m) => (
-                      <option key={m.id} value={m.path}>
-                        {m.name}
-                        {m.quant ? ` (${m.quant})` : ''}
-                      </option>
-                    ))}
-                  {quantFilter && modelChoices.length === 0 && (
-                    <option value="" disabled>
-                      — {quantFilter} —
+                  {modelChoices.map((m) => (
+                    <option key={m.id} value={m.path}>
+                      {m.name}
+                      {m.quant ? ` (${m.quant})` : ''}
                     </option>
-                  )}
+                  ))}
                 </select>
                 <button className="btn" onClick={() => void pickModelFile()}>
                   {t('server.browse')}

@@ -313,16 +313,16 @@ export default {
       repeatPenalty: '重复惩罚',
       seed: '随机种子',
       ignoreEos: '忽略 EOS',
-      quant: '量化',
-      quantPh: '可选过滤：q4_k_m / q5_k_m / q8_0 / f16 …'
+      chatTemplateFile: '外部模板文件'
     },
     hints: {
       corsOrigins: '允许跨域来源（供浏览器/外部应用访问），逗号分隔；* = 全部（必须配合 API key）',
       threadsHttp: '-1 = 自动',
       modelFile: '从模型库选择，或手动输入 .gguf 路径',
-      jinja: '使用模型内置 chat template（推荐开启）',
+      jinja: '启用 jinja 模板引擎（推荐开启）；外部模板在“外部模板文件”指定',
+      chatTemplateFile: '从外部 .jinja 文件读取模板，覆盖模型内置（需同时开启 Jinja 模板）；留空 = 用模型内置',
       ctxSize: '上下文长度（token 数）。0 = 使用模型训练的上下文长度；长对话可调大，注意 KV 显存占用',
-      chatTemplate: '覆盖内置 jinja 模板，一般留空',
+      chatTemplate: '直接粘贴 jinja 模板字符串覆盖内置模板，一般留空（文件请用“外部模板文件”）',
       nGpuLayers: '0 = 全部 CPU；999 = 全部 GPU（需对应 GPU 构建）',
       threads: '0 = 自动（物理核心数）',
       splitMode: '多 GPU 时各卡如何切分权重；单卡可忽略',
@@ -332,8 +332,7 @@ export default {
       topP: '1.0 = 禁用',
       minP: '0.0 = 禁用',
       repeatPenalty: '1.0 = 禁用',
-      seed: '-1 = 每次随机',
-      quant: '只列出匹配该量化的模型；留空 = 全部'
+      seed: '-1 = 每次随机'
     },
     splitModes: {
       auto: '自动',

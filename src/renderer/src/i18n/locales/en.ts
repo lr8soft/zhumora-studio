@@ -313,16 +313,16 @@ export default {
       repeatPenalty: 'Repeat penalty',
       seed: 'Random seed',
       ignoreEos: 'Ignore EOS',
-      quant: 'Quantization',
-      quantPh: 'Optional filter: q4_k_m / q5_k_m / q8_0 / f16 …'
+      chatTemplateFile: 'External template file'
     },
     hints: {
       corsOrigins: 'Allowed cross-origin sources (comma-separated); * = all (must pair with an API key)',
       threadsHttp: '-1 = auto',
       modelFile: 'Pick from the library or type a .gguf path',
-      jinja: 'Use the model’s built-in chat template (recommended)',
+      jinja: 'Enable the jinja template engine (recommended); set an external one via “External template file”',
+      chatTemplateFile: 'Load a template from an external .jinja file to override the built-in one (requires Jinja enabled); empty = use built-in',
       ctxSize: 'Context length in tokens. 0 = model default (trained context). Raise for long conversations; watch KV memory.',
-      chatTemplate: 'Override the built-in jinja template; usually leave empty',
+      chatTemplate: 'Paste a jinja template string to override the built-in one; usually leave empty (use “External template file” for files)',
       nGpuLayers: '0 = all CPU; 999 = all GPU (needs matching GPU build)',
       threads: '0 = auto (physical cores)',
       splitMode: 'How to split weights across GPUs; ignore for single-GPU',
@@ -332,8 +332,7 @@ export default {
       topP: '1.0 = disabled',
       minP: '0.0 = disabled',
       repeatPenalty: '1.0 = disabled',
-      seed: '-1 = random each run',
-      quant: 'Only models matching this quant show up. Empty = all.'
+      seed: '-1 = random each run'
     },
     splitModes: {
       auto: 'Auto',

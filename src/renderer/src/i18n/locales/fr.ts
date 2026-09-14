@@ -313,16 +313,16 @@ export default {
       repeatPenalty: 'Pénalité de répétition',
       seed: 'Graine aléatoire',
       ignoreEos: 'Ignorer EOS',
-      quant: 'Quantification',
-      quantPh: 'Filtre optionnel : q4_k_m / q5_k_m / q8_0 / f16 …'
+      chatTemplateFile: 'Chemin du template externe'
     },
     hints: {
       corsOrigins: 'Origines cross-domain autorisées (séparées par des virgules) ; * = toutes (nécessite une clé API)',
       threadsHttp: '-1 = auto',
       modelFile: 'Choisir dans la bibliothèque ou saisir un chemin .gguf',
-      jinja: 'Utiliser le modèle de chat intégré du modèle (recommandé)',
+      jinja: 'Activer le moteur de template jinja (recommandé) ; le template externe se définit dans « Chemin du template externe »',
+      chatTemplateFile: 'Charge un template depuis un fichier .jinja externe pour écraser le template intégré (nécessite Jinja activé) ; vide = intégré',
       ctxSize: 'Longueur de contexte en tokens. 0 = contexte d’entraînement du modèle. Augmentez pour les longues conversations ; surveillez la mémoire KV.',
-      chatTemplate: 'Écraser le modèle jinja intégré ; généralement vide',
+      chatTemplate: 'Coller une chaîne de template jinja pour écraser le template intégré ; généralement vide (utilisez « Chemin du template externe » pour un fichier)',
       nGpuLayers: '0 = CPU complet ; 999 = GPU complet (nécessite un build GPU adapté)',
       threads: '0 = auto (cœurs physiques)',
       splitMode: 'Comment répartir les poids entre GPU ; à ignorer avec un seul GPU',
@@ -333,7 +333,6 @@ export default {
       minP: '0.0 = désactivé',
       repeatPenalty: '1.0 = désactivé',
       seed: '-1 = aléatoire à chaque fois',
-      quant: 'Uniquement les modèles de cette quantification ; vide = tous'
     },
     splitModes: {
       auto: 'Auto',

@@ -5,20 +5,44 @@ import type { GpuProbeResult, RuntimeAsset } from '@shared/types'
 
 const pexecFile = promisify(execFile)
 
+/** 显卡列表（按平台）：Windows → CIM；Linux → lspci；macOS → system_profiler。失败返回 [] */
+async function listAdapters(): Promise<string[]> {
+  const clean = (s: string) => s.split(/\r?\n/).map((l) => l.trim()).filter(Boolean)
+  try {
+    if (process.platform === 'win32') {
+      const { stdout } = await pexecFile('powershell', [
+        '-NoProfile',
+        '-Command',
+        "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"
+      ])
+      return clean(stdout)
+    }
+    if (process.platform === 'linux') {
+      // lspci 是大多数发行版的基线工具；取 VGA/3D/Display 控制器，去掉末尾的 PCI ID
+      const { stdout } = await pexecFile('lspci', ['nn'], { timeout: 8000 })
+      return clean(stdout)
+        .filter((l) => /VGA|3D controller|Display controller/i.test(l))
+        .map((l) => l.replace(/\s*\[[0-9a-f]{4}:[0-9a-f]{4}\](\s*\[.*\])?$/i, '').trim())
+    }
+    if (process.platform === 'darwin') {
+      // system_profiler 的 "Chipset Model: Apple M3" 行
+      const { stdout } = await pexecFile('system_profiler', ['SPDisplaysDataType'], { timeout: 15000 })
+      return clean(stdout)
+        .filter((l) => /^Chipset Model:/i.test(l))
+        .map((l) => l.replace(/^Chipset Model:\s*/i, ''))
+    }
+  } catch {
+    return []
+  }
+  return []
+}
+
 /** GPU 探测：架构 + 视频适配器 + NVIDIA 驱动版本。失败不抛，返回 error。 */
 export async function probeGpu(): Promise<GpuProbeResult> {
   const arch = process.arch === 'arm64' ? 'arm64' : 'x64'
   const result: GpuProbeResult = { arch, adapters: [] }
   try {
-    const { stdout } = await pexecFile('powershell', [
-      '-NoProfile',
-      '-Command',
-      "Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name"
-    ])
-    result.adapters = stdout
-      .split(/\r?\n/)
-      .map((s) => s.trim())
-      .filter(Boolean)
+    result.adapters = await listAdapters()
   } catch (err) {
     result.error = (err as Error).message
   }
