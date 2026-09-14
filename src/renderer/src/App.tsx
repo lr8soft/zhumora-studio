@@ -51,7 +51,7 @@ export default function App() {
       <div className="app-shell">
         <Sidebar view={view} onNavigate={setView} />
         <main className="main-area">
-          {view === 'runtime' && <RuntimeView />}
+          {view === 'runtime' && <RuntimeView onNavigate={setView} />}
           {view === 'models' && <ModelsView />}
           {view === 'server' && <ServerView />}
           {view === 'status' && <StatusView />}

@@ -143,7 +143,81 @@ async function systemCpuLoad(): Promise<number | undefined> {
   }
 }
 
-/** GPU 实时状态：NVIDIA 走 nvidia-smi；AMD(Linux) 走 rocm-smi；Apple Silicon 暂无稳定 CLI，留空 */
+/**
+ * Windows 非 NVIDIA 卡（AMD / Intel 等）：
+ * - 显卡名 / 驱动 / 显存总量：WMI Win32_VideoController
+ * - 利用率 / 显存占用：性能计数器（GPU Engine 3D/Compute 引擎取 max；GPU Adapter Memory 取 Dedicated Usage）
+ * - 计数器实例按 LUID 区分卡，LUID↔卡名 通过驱动注册表映射（无桌面会话时该映射缺失 → 显存/利用率不可用，
+ *   此时只显示 WMI 的卡名/驱动/显存总量）
+ * 输出：每行一个 JSON 对象
+ */
+async function gpuStatsWindowsNonNvidia(): Promise<ServerStatus['gpus']> {
+  const ps = `
+$ErrorActionPreference = 'SilentlyContinue'
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
+$wmi = @(Get-CimInstance Win32_VideoController | ForEach-Object { [PSCustomObject]@{ Name = [string]$_.Name; Driver = [string]$_.DriverVersion; Ram = [long]$_.AdapterRAM; Pnp = [string]$_.PNPDeviceID } })
+$luid = @{}
+$cls = 'HKLM:\\SYSTEM\\CurrentControlSet\\Control\\Class\\{4d36e968-e325-11ce-bfc1-08002be10318}'
+foreach ($c in (Get-ChildItem $cls)) {
+  $pr = Get-ItemProperty $c.PSPath
+  if ($pr.PNPDeviceID -and $pr.LUID -ne $null) { $luid[$pr.PNPDeviceID] = $pr.LUID.ToString('x8') }
+}
+$util = @{}; $mem = @{}
+try {
+  $cs = Get-Counter '\\GPU Engine(*)\\Utilization Percentage','\\GPU Adapter Memory(*)\\Dedicated Usage' -SampleInterval 1 -MaxSamples 1 -ErrorAction Stop
+  foreach ($s in $cs.CounterSamples) {
+    $m = [regex]::Match($s.Path, 'luid_0x([0-9a-f]{8})_0x[0-9a-f]{8}_phys_(\\d+)')
+    if (-not $m.Success) { continue }
+    $k = $m.Groups[1].Value + '_' + $m.Groups[3].Value
+    if ($s.Path -match 'GPU Engine') {
+      if ($s.Path -match 'engtype_(3D|Compute)') {
+        if (-not $util.ContainsKey($k) -or $s.CookedValue -gt $util[$k]) { $util[$k] = $s.CookedValue }
+      }
+    } else {
+      if (-not $mem.ContainsKey($k) -or $s.CookedValue -gt $mem[$k]) { $mem[$k] = $s.CookedValue }
+    }
+  }
+} catch { }
+foreach ($w in $wmi) {
+  $lk = if ($w.Pnp -and $luid.ContainsKey($w.Pnp)) { $luid[$w.Pnp] } else { $null }
+  $u = if ($lk -and $util.ContainsKey($lk)) { [math]::Round([double]$util[$lk], 0) } else { $null }
+  $mb = if ($lk -and $mem.ContainsKey($lk)) { [math]::Round([double]$mem[$lk] / 1048576, 0) } else { $null }
+  [PSCustomObject]@{ Name = $w.Name; Driver = $w.Driver; Ram = $w.Ram; Util = $u; Mem = $mb } | ConvertTo-Json -Compress
+}
+`
+  try {
+    const { stdout } = await pexecFile(
+      'powershell',
+      ['-NoProfile', '-NoLogo', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', ps],
+      { timeout: 15000, encoding: 'utf8' }
+    )
+    const out: ServerStatus['gpus'] = []
+    for (const line of stdout.split(/\r?\n/)) {
+      const t = line.trim()
+      if (!t.startsWith('{')) continue
+      try {
+        const r = JSON.parse(t) as { Name?: string; Driver?: string; Ram?: number; Util?: number | null; Mem?: number | null }
+        out.push({
+          index: out.length,
+          name: r.Name || 'GPU',
+          driver: r.Driver || '',
+          memUsedMB: typeof r.Mem === 'number' && Number.isFinite(r.Mem) ? r.Mem : 0,
+          memTotalMB: typeof r.Ram === 'number' && Number.isFinite(r.Ram) && r.Ram > 0 ? Math.round(r.Ram / 1048576) : 0,
+          utilPct: typeof r.Util === 'number' && Number.isFinite(r.Util) ? Math.round(r.Util) : 0,
+          tempC: 0,
+          powerW: 0
+        })
+      } catch {
+        // 跳过坏行
+      }
+    }
+    return out
+  } catch {
+    return []
+  }
+}
+
+/** GPU 实时状态：NVIDIA 走 nvidia-smi；Windows 非 NVIDIA 走性能计数器 + WMI；AMD(Linux) 走 rocm-smi */
 async function gpus(): Promise<ServerStatus['gpus']> {
   const out: ServerStatus['gpus'] = []
   if (IS_WIN || IS_LINUX) {
@@ -172,6 +246,10 @@ async function gpus(): Promise<ServerStatus['gpus']> {
       }
     } catch {
       // 非 NVIDIA 机器没有 nvidia-smi
+    }
+    if (out.length === 0 && IS_WIN) {
+      // 非 NVIDIA（AMD / Intel / 集显）：性能计数器 + WMI
+      out.push(...(await gpuStatsWindowsNonNvidia()))
     }
     if (out.length === 0 && IS_LINUX) {
       try {

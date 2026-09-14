@@ -19,6 +19,8 @@ export default function ServerView() {
   const [toast, setToast] = useState<string | null>(null)
 
   const running = serverState.state === 'starting' || serverState.state === 'ready'
+  // 可启动条件：runtime 已就绪，或已手动指定 llama-server（自定义二进制路径）
+  const binaryReady = runtime.state === 'ready' || Boolean(settings?.llamaBinary)
   const stale =
     serverState.state === 'ready' &&
     JSON.stringify(buildArgs(paramDraft)) !== JSON.stringify(buildArgs(settings?.lastParams ?? paramDraft))
@@ -96,9 +98,9 @@ export default function ServerView() {
             <button
               className="btn btn-primary"
               onClick={() => void start()}
-              disabled={runtime.state !== 'ready' || !paramDraft.modelPath}
+              disabled={!binaryReady || !paramDraft.modelPath}
               title={
-                runtime.state !== 'ready'
+                !binaryReady
                   ? t('server.needRuntime')
                   : !paramDraft.modelPath
                     ? t('server.needModel')

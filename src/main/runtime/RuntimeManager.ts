@@ -1,13 +1,21 @@
-import { execFile } from 'child_process'
-import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, createWriteStream } from 'fs'
+import { execFile, spawn } from 'child_process'
+import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdirSync, createWriteStream, statSync } from 'fs'
 import { join, dirname } from 'path'
 import yauzl from 'yauzl'
 import { downloadFile, type DownloadOptions } from '../download/Downloader'
-import { fetchWinAssets } from './github'
+import { fetchPlatformAssets } from './github'
 import { pickVariant, probeGpu } from './detect'
 import type { RuntimeAsset, RuntimeStatus } from '@shared/types'
 
-const LAMA_BINARY_NAME = 'llama-server.exe'
+type Platform = 'win' | 'linux' | 'macos'
+
+function platformOf(): Platform {
+  return process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'macos' : 'linux'
+}
+
+function binaryName(): string {
+  return platformOf() === 'win' ? 'llama-server.exe' : 'llama-server'
+}
 
 interface Manifest {
   version: string
@@ -87,12 +95,16 @@ export class RuntimeManager {
     const probe = await probeGpu()
     let assets: RuntimeAsset[]
     try {
-      ;({ assets } = await fetchWinAssets())
+      ;({ assets } = await fetchPlatformAssets())
     } catch (e) {
+      const offline =
+        probe.platform === 'linux' && probe.adapters.some((a) => /nvidia/i.test(a))
+          ? '本机是 NVIDIA 显卡：官方 Linux 构建不含 CUDA 版，建议在设置中指定你自己编译的 llama-server 路径。'
+          : '可离线使用：在设置中手动指定 llama-server 路径。'
       this.emit({
         state: 'error',
         detected: probe,
-        error: `获取 GitHub release 失败: ${(e as Error).message}。可离线使用：在设置中手动指定 llama-server 路径。`
+        error: `获取 GitHub release 失败: ${(e as Error).message}。${offline}`
       })
       return this.status
     }
@@ -127,9 +139,13 @@ export class RuntimeManager {
       })
 
       this.emit({ state: 'extracting', progress: { done: 0, total: 0, speed: 0, phase: 'extracting' } })
-      await extractZip(zipPath, dir, (done, total) =>
-        this.emit({ progress: { done, total, speed: 0, phase: 'extracting' } })
-      )
+      if (asset.name.endsWith('.zip')) {
+        await extractZip(zipPath, dir, (done, total) =>
+          this.emit({ progress: { done, total, speed: 0, phase: 'extracting' } })
+        )
+      } else {
+        await extractTarGz(zipPath, dir)
+      }
       try {
         unlinkSync(zipPath)
       } catch {
@@ -156,7 +172,7 @@ export class RuntimeManager {
       }
 
       const binary = findBinary(dir)
-      if (!binary) throw new Error('解压完成但未找到 llama-server.exe')
+      if (!binary) throw new Error(`解压完成但未找到 ${binaryName()}`)
 
       // 验证二进制可执行（--version 探测；失败 = DLL 缺失/架构不符/损坏）
       await verifyBinary(binary)
@@ -198,7 +214,7 @@ export class RuntimeManager {
   /** 刷新 asset 列表（不下载） */
   async refreshAssets(): Promise<RuntimeAsset[]> {
     try {
-      const { assets } = await fetchWinAssets()
+      const { assets } = await fetchPlatformAssets()
       const probe = this.status.detected ?? (await probeGpu())
       this.emit({ assets, detected: probe, recommended: pickVariant(probe, assets) })
       return assets
@@ -215,12 +231,9 @@ function relativeSafe(from: string, to: string): string {
 }
 
 function findBinary(dir: string): string | undefined {
-  // llama.cpp release zip 内通常是 build/bin/llama-server.exe 或根目录
-  const candidates = [
-    join(dir, 'build', 'bin', LAMA_BINARY_NAME),
-    join(dir, 'bin', LAMA_BINARY_NAME),
-    join(dir, LAMA_BINARY_NAME)
-  ]
+  // llama.cpp release 包内通常是 build/bin/llama-server(.exe) 或根目录
+  const name = binaryName()
+  const candidates = [join(dir, 'build', 'bin', name), join(dir, 'bin', name), join(dir, name)]
   for (const c of candidates) {
     if (existsSync(c)) return c
   }
@@ -231,7 +244,7 @@ function findBinary(dir: string): string | undefined {
     for (const entry of readdirSync(cur, { withFileTypes: true })) {
       const p = join(cur, entry.name)
       if (entry.isDirectory()) stack.push(p)
-      else if (entry.name === LAMA_BINARY_NAME) return p
+      else if (entry.name === name) return p
     }
   }
   return undefined
@@ -321,11 +334,32 @@ async function downloadWithRetry(opts: DownloadOptions): Promise<void> {
   }
 }
 
+/**
+ * 解压 tar.gz（Linux / macOS 发行包）。用系统 tar 命令：
+ * 二进制文件的执行位由 tar 自动恢复，无需额外 chmod。
+ */
+function extractTarGz(tarPath: string, destDir: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    spawn('tar', ['-xzf', tarPath, '-C', destDir], { stdio: 'pipe' })
+      .on('error', (err: NodeJS.ErrnoException) => {
+        reject(
+          err.code === 'ENOENT'
+            ? new Error('系统缺少 tar 命令，无法解压。请安装 tar 后重试，或在设置中手动指定 llama-server 路径')
+            : new Error(`tar 解压失败: ${err.message}`)
+        )
+      })
+      .on('close', (code) => {
+        if (code === 0) resolve()
+        else reject(new Error(`tar 解压失败（退出码 ${code}）`))
+      })
+  })
+}
+
 /** 验证二进制可执行（--version 快速探测） */
 export function verifyBinary(binaryPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     execFile(binaryPath, ['--version'], { timeout: 10000 }, (err) => {
-      if (err) reject(new Error(`llama-server --version 执行失败: ${err.message}`))
+      if (err) reject(new Error(`${binaryName()} --version 执行失败: ${err.message}`))
       else resolve()
     })
   })

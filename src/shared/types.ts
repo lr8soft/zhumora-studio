@@ -71,7 +71,7 @@ export interface ServerStatus {
     /** 已用物理内存 MB */
     usedMB: number
   }
-  /** nvidia-smi 实时数据（NVIDIA 卡；非 NVIDIA / 不可用时为空） */
+  /** GPU 实时状态（多厂商；不可用时为空） */
   gpus: {
     index: number
     name: string
@@ -102,6 +102,8 @@ export type RuntimeStateName =
 
 export interface GpuProbeResult {
   arch: 'x64' | 'arm64'
+  /** 构建下载用平台标识：win / linux / macos */
+  platform: 'win' | 'linux' | 'macos'
   adapters: string[]
   nvidiaDriver?: string
   error?: string

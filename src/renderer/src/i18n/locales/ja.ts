@@ -47,7 +47,12 @@ export default {
     builds: 'ダウンロード可能なビルド',
     buildsSub: '{{ver}} · ローカル {{arch}} · クリックしてダウンロード',
     rec: '推奨',
-    installed: 'インストール済み'
+    installed: 'インストール済み',
+    customTitle: 'カスタム llama-server',
+    customDesc: 'NVIDIA GPU が検出されましたが、公式 Linux ビルドには CUDA 版がありません。自分でコンパイルした llama-server（CUDA 対応）を直接指定できます。',
+    customPick: 'llama-server を選択',
+    customSet: '設定済み',
+    customSettings: '設定へ'
   },
   models: {
     title: 'モデル広場',
@@ -99,6 +104,9 @@ export default {
     thSize: 'サイズ',
     delete: '削除',
     confirmDelete: 'このモデルファイルを削除しますか？',
+    unlink: '解除',
+    external: '外部',
+    confirmDeleteExternal: 'モデルライブラリから解除しますか？元のファイルは削除されません。',
     fail: '失敗 · {{msg}}',
     today: '今日',
     daysAgo: '{{n}} 日前',

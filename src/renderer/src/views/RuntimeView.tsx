@@ -1,6 +1,7 @@
 import { useAppStore } from '../store'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import type { ViewId } from '../components/Sidebar'
 
 function fmtSize(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB'
@@ -14,9 +15,11 @@ function fmtSpeed(bps: number): string {
   return ''
 }
 
-export default function RuntimeView() {
+export default function RuntimeView({ onNavigate }: { onNavigate: (v: ViewId) => void }) {
   const { t } = useTranslation()
   const runtime = useAppStore((s) => s.runtime)
+  const settings = useAppStore((s) => s.settings)
+  const setSettings = useAppStore((s) => s.setSettings)
   const [busy, setBusy] = useState(false)
 
   const download = async (variant: string) => {
@@ -36,6 +39,18 @@ export default function RuntimeView() {
     } finally {
       setBusy(false)
     }
+  }
+
+  const customBinary = settings?.llamaBinary ?? ''
+  const isLinux = runtime.detected?.platform === 'linux'
+  const hasNvidia = (runtime.detected?.adapters ?? []).some((a) => /nvidia/i.test(a))
+  const showCustom = isLinux && hasNvidia && runtime.state !== 'ready'
+
+  const pickBinary = async () => {
+    const p = await window.zhumora.system.pickBinary()
+    if (!p) return
+    const next = await window.zhumora.settings.save({ llamaBinary: p })
+    setSettings(next)
   }
 
   const progress = runtime.progress
@@ -71,7 +86,11 @@ export default function RuntimeView() {
           <h3>
             {t('runtime.status')}
             <span className="sub">
-              {runtime.version ? `${runtime.version} · ${runtime.variant}` : t('runtime.notInstalled')}
+              {customBinary
+                ? t('runtime.customTitle')
+                : runtime.version
+                  ? `${runtime.version} · ${runtime.variant}`
+                  : t('runtime.notInstalled')}
             </span>
           </h3>
           {runtime.state === 'ready' && (
@@ -95,6 +114,41 @@ export default function RuntimeView() {
 
           {runtime.state === 'error' && runtime.error && (
             <div className="status-error">{runtime.error}</div>
+          )}
+
+          {showCustom && (
+            <div
+              style={{
+                display: 'grid',
+                gap: 8,
+                padding: '12px 14px',
+                border: '1px solid var(--app-color-warn)',
+                borderRadius: 8,
+                background: 'color-mix(in srgb, var(--app-color-warn) 8%, transparent)'
+              }}
+            >
+              <strong>{t('runtime.customTitle')}</strong>
+              <div style={{ fontSize: '0.833rem', color: 'var(--app-color-text-mute)' }}>
+                {t('runtime.customDesc')}
+              </div>
+              {customBinary ? (
+                <div className="mono" style={{ fontSize: '0.833rem', wordBreak: 'break-all' }}>
+                  {customBinary}
+                  <span className="badge badge-ready" style={{ marginLeft: 8 }}>
+                    {t('runtime.customSet')}
+                  </span>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                  <button className="btn btn-sm btn-primary" onClick={() => void pickBinary()}>
+                    {t('runtime.customPick')}
+                  </button>
+                  <button className="btn btn-sm btn-ghost" onClick={() => onNavigate('settings')}>
+                    {t('runtime.customSettings')}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {(runtime.state === 'downloading' || runtime.state === 'extracting') && progress && (

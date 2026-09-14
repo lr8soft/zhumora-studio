@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { useAppStore } from '../store'
 import { quantFromPath } from '@shared/hfutil'
-import type { HfCapabilities, HfModel, HfModelDetail, HfSort } from '@shared/types'
+import type { HfCapabilities, HfModel, HfModelDetail, HfSort, ModelInfo } from '@shared/types'
 import { useTranslation } from 'react-i18next'
 
 // ---------- 格式化 ----------
@@ -196,6 +196,7 @@ export default function ModelsView() {
   const models = useAppStore((s) => s.models)
   const downloads = useAppStore((s) => s.downloads)
   const loadModels = useAppStore((s) => s.loadModels)
+  const settings = useAppStore((s) => s.settings)
 
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<HfSort>('best')
@@ -272,9 +273,14 @@ export default function ModelsView() {
     await window.zhumora.models.import()
     await loadModels()
   }
-  const removeModel = async (id: string) => {
-    if (!window.confirm(t('models.confirmDelete'))) return
-    await window.zhumora.models.remove(id)
+  /** 外部导入的模型（原文件不在 models 目录）：删除时只移除库记录，不碰原文件 */
+  const isExternal = (m: ModelInfo) =>
+    !settings?.modelsDir || !m.path.startsWith(settings.modelsDir)
+
+  const removeModel = async (m: ModelInfo) => {
+    const msg = isExternal(m) ? t('models.confirmDeleteExternal') : t('models.confirmDelete')
+    if (!window.confirm(msg)) return
+    await window.zhumora.models.remove(m.id)
     await loadModels()
   }
 
@@ -581,28 +587,46 @@ export default function ModelsView() {
               </tr>
             </thead>
             <tbody>
-              {models.map((m) => (
-                <tr key={m.id}>
-                  <td style={{ fontWeight: 600, wordBreak: 'break-all' }}>{m.name}</td>
-                  <td>
-                    {m.kind === 'mmproj' ? (
-                      <span className="badge badge-info">mmproj</span>
-                    ) : (
-                      <span className="badge badge-stopped">model</span>
-                    )}
-                  </td>
-                  <td>{m.arch ?? '—'}</td>
-                  <td>{m.quant ? <span className="mono">{m.quant}</span> : '—'}</td>
-                  <td>{fmtSize(m.size)}</td>
-                  <td>
-                    <div className="cell-actions">
-                      <button className="btn btn-sm btn-danger" onClick={() => void removeModel(m.id)}>
-                        {t('models.delete')}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+              {models.map((m) => {
+                const ext = isExternal(m)
+                return (
+                  <tr key={m.id}>
+                    <td style={{ fontWeight: 600, wordBreak: 'break-all' }}>
+                      {m.name}
+                      {ext && <span className="badge badge-info" style={{ marginLeft: 8 }}>{t('models.external')}</span>}
+                    </td>
+                    <td>
+                      {m.kind === 'mmproj' ? (
+                        <span className="badge badge-info">mmproj</span>
+                      ) : (
+                        <span className="badge badge-stopped">model</span>
+                      )}
+                    </td>
+                    <td>{m.arch ?? '—'}</td>
+                    <td>{m.quant ? <span className="mono">{m.quant}</span> : '—'}</td>
+                    <td>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span>{fmtSize(m.size)}</span>
+                        {ext && (
+                          <span
+                            className="mono"
+                            style={{ fontSize: '0.75rem', color: 'var(--app-color-text-mute)', wordBreak: 'break-all' }}
+                          >
+                            {m.path}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td>
+                      <div className="cell-actions">
+                        <button className="btn btn-sm btn-danger" onClick={() => void removeModel(m)}>
+                          {ext ? t('models.unlink') : t('models.delete')}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         )}

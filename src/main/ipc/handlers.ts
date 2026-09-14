@@ -1,7 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { existsSync, unlinkSync, mkdirSync, copyFileSync } from 'fs'
-import { join, basename } from 'path'
+import { existsSync, unlinkSync } from 'fs'
 import { Ipc, IpcEvent } from '@shared/ipc'
 import { defaultParams } from '@shared/buildArgs'
 import { LAUNCH_PARAMS, EXTRA_ARGS_KEY } from '@shared/launchParams'
@@ -14,6 +13,7 @@ import { KeysRepo } from '../store/keysRepo'
 import { UsageRepo } from '../store/usageRepo'
 import { RequestLogRepo } from '../store/requestLogRepo'
 import { scanModelsDir } from '../models/scanner'
+import { modelInfoFromPath } from '../models/gguf'
 import { ServerManager } from '../server/ServerManager'
 import { collectServerStatus } from '../server/status'
 import { ChatProxy } from '../chat/ChatProxy'
@@ -105,20 +105,12 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
       properties: ['openFile', 'multiSelections'],
       filters: [{ name: 'GGUF', extensions: ['gguf'] }]
     })
-    if (canceled) return []
-    const dir = settings.get().modelsDir
-    mkdirSync(dir, { recursive: true })
-    for (const src of filePaths) {
-      const dest = join(dir, basename(src))
-      if (!existsSync(dest)) {
-        try {
-          copyFileSync(src, dest)
-        } catch {
-          // 复制失败跳过（UI 层以扫描结果为准）
-        }
-      }
+    if (canceled || filePaths.length === 0) return []
+    // 外部模型不复制：直接用原路径注册（models 目录只放应用自己下载的）
+    for (const p of filePaths) {
+      models.upsert(modelInfoFromPath(p, randomUUID(), Date.now()))
     }
-    scanModelsDir(dir, models)
+    scanModelsDir(settings.get().modelsDir, models)
     return models.list()
   })
 
@@ -126,7 +118,8 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
     const model = models.list().find((m) => m.id === id)
     if (!model) return
     const dir = settings.get().modelsDir
-    // 只允许删除 models 目录内的文件
+    // 删除动作不移动/不复制文件：models 目录内的（应用下载的）删文件，
+    // 外部导入的（用户自己的）只移除库记录，原文件保持不动
     if (model.path.startsWith(dir) && existsSync(model.path)) {
       try {
         unlinkSync(model.path)
@@ -290,13 +283,11 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
       filters: [{ name: 'GGUF', extensions: ['gguf'] }]
     })
     if (canceled || filePaths.length === 0) return null
-    // 选外部文件：复制进 models 目录后返回路径
-    const dir = settings.get().modelsDir
-    mkdirSync(dir, { recursive: true })
-    const dest = join(dir, basename(filePaths[0]))
-    if (!existsSync(dest)) copyFileSync(filePaths[0], dest)
-    scanModelsDir(dir, models)
-    return dest
+    // 外部文件不复制：原路径注册进库 + 扫描 models 目录（下载中的模型）
+    const p = filePaths[0]
+    models.upsert(modelInfoFromPath(p, randomUUID(), Date.now()))
+    scanModelsDir(settings.get().modelsDir, models)
+    return p
   })
 
   ipcMain.handle(Ipc.systemPickDirectory, async () => {
@@ -315,7 +306,10 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
       title: '选择 llama-server 可执行文件',
       properties: ['openFile'],
-      filters: [{ name: 'Executable', extensions: ['exe'] }, { name: 'All', extensions: ['*'] }]
+      filters:
+        process.platform === 'win32'
+          ? [{ name: 'Executable', extensions: ['exe'] }, { name: 'All', extensions: ['*'] }]
+          : [{ name: 'All', extensions: ['*'] }]
     })
     return canceled || filePaths.length === 0 ? null : filePaths[0]
   })

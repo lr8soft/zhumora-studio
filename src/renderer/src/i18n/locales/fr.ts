@@ -47,7 +47,12 @@ export default {
     builds: 'Builds téléchargeables',
     buildsSub: '{{ver}} · local {{arch}} · cliquer pour télécharger',
     rec: 'recommandée',
-    installed: 'installée'
+    installed: 'installée',
+    customTitle: 'llama-server personnalisé',
+    customDesc: 'Un GPU NVIDIA a été détecté, mais les builds Linux officiels ne contiennent pas de variante CUDA. Vous pouvez indiquer directement votre propre llama-server compilé avec CUDA.',
+    customPick: 'Choisir llama-server',
+    customSet: 'Configuré',
+    customSettings: 'Aller aux réglages'
   },
   models: {
     title: 'Place des modèles',
@@ -99,6 +104,9 @@ export default {
     thSize: 'Taille',
     delete: 'Supprimer',
     confirmDelete: 'Supprimer ce fichier de modèle ?',
+    unlink: 'Retirer',
+    external: 'externe',
+    confirmDeleteExternal: 'Retirer de la bibliothèque ? Le fichier d’origine ne sera pas supprimé.',
     fail: 'Échec · {{msg}}',
     today: 'Aujourd’hui',
     daysAgo: 'il y a {{n}} j',

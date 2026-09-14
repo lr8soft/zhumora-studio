@@ -93,28 +93,36 @@ test('sanitizeParams: secret 参数脱敏（apiKey）', () => {
   assert.equal(s.port, 1234) // 非 secret 不变
 })
 
-test('pickVariant: NVIDIA 高驱动 → cuda-13', () => {
-  const probe: GpuProbeResult = { arch: 'x64', adapters: ['NVIDIA GeForce RTX 4060'], nvidiaDriver: '580.97' }
+test('pickVariant: Windows NVIDIA 高驱动 → cuda-13', () => {
+  const probe: GpuProbeResult = { arch: 'x64', platform: 'win', adapters: ['NVIDIA GeForce RTX 4060'], nvidiaDriver: '580.97' }
   const assets = mkAssets(['cuda-13.3', 'cuda-12.4', 'vulkan', 'cpu'])
   assert.equal(pickVariant(probe, assets), 'cuda-13.3')
 })
 
-test('pickVariant: NVIDIA 中驱动 → cuda-12.4', () => {
-  const probe: GpuProbeResult = { arch: 'x64', adapters: ['NVIDIA GeForce RTX 3060'], nvidiaDriver: '551.86' }
+test('pickVariant: Windows NVIDIA 中驱动 → cuda-12.4', () => {
+  const probe: GpuProbeResult = { arch: 'x64', platform: 'win', adapters: ['NVIDIA GeForce RTX 3060'], nvidiaDriver: '551.86' }
   const assets = mkAssets(['cuda-13.3', 'cuda-12.4', 'vulkan', 'cpu'])
   assert.equal(pickVariant(probe, assets), 'cuda-12.4')
 })
 
+test('pickVariant: Linux NVIDIA 官方构建无 cuda → 落到 vulkan', () => {
+  const probe: GpuProbeResult = { arch: 'x64', platform: 'linux', adapters: ['NVIDIA GeForce RTX 3090'], nvidiaDriver: '580.97' }
+  const assets = mkAssets(['vulkan', 'cpu'])
+  assert.equal(pickVariant(probe, assets), 'vulkan')
+  // vulkan 也不可用时落到 cpu
+  assert.equal(pickVariant(probe, mkAssets(['cpu'])), 'cpu')
+})
+
 test('pickVariant: AMD → vulkan；无独显 → cpu', () => {
-  const amd: GpuProbeResult = { arch: 'x64', adapters: ['AMD Radeon RX 7800 XT'] }
-  const none: GpuProbeResult = { arch: 'x64', adapters: ['Microsoft Basic Render Driver'] }
+  const amd: GpuProbeResult = { arch: 'x64', platform: 'win', adapters: ['AMD Radeon RX 7800 XT'] }
+  const none: GpuProbeResult = { arch: 'x64', platform: 'win', adapters: ['Microsoft Basic Render Driver'] }
   const assets = mkAssets(['cuda-12.4', 'vulkan', 'cpu'])
   assert.equal(pickVariant(amd, assets), 'vulkan')
   assert.equal(pickVariant(none, assets), 'cpu')
 })
 
 test('pickVariant: arm64 架构过滤', () => {
-  const probe: GpuProbeResult = { arch: 'arm64', adapters: ['Apple M3'] }
+  const probe: GpuProbeResult = { arch: 'arm64', platform: 'macos', adapters: ['Apple M3'] }
   const assets = [
     mkAsset('cpu', 'arm64'),
     mkAsset('vulkan', 'arm64')
