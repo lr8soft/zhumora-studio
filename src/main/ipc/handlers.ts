@@ -12,12 +12,15 @@ import { ModelsRepo } from '../store/modelsRepo'
 import { ChatRepo } from '../store/chatRepo'
 import { KeysRepo } from '../store/keysRepo'
 import { UsageRepo } from '../store/usageRepo'
+import { RequestLogRepo } from '../store/requestLogRepo'
 import { scanModelsDir } from '../models/scanner'
 import { ServerManager } from '../server/ServerManager'
+import { collectServerStatus } from '../server/status'
 import { ChatProxy } from '../chat/ChatProxy'
 import { RuntimeManager } from '../runtime/RuntimeManager'
 import { ModelDownloader } from '../models/downloader'
 import { searchModels, getModelDetail, getOwnerAvatar } from '../models/huggingface'
+import { generateApiKeyUnique } from '@shared/keygen'
 import type { HfSort } from '@shared/types'
 
 /** 输入校验：LaunchParams 按 schema 收敛（只保留已知 key + 类型） */
@@ -47,6 +50,7 @@ export interface AppContext {
   chat: ChatRepo
   keys: KeysRepo
   usage: UsageRepo
+  requestLog: RequestLogRepo
   server: ServerManager
   chatProxy: ChatProxy
   runtime: RuntimeManager
@@ -61,11 +65,19 @@ function syncProxyKey(ctx: AppContext): void {
 }
 
 export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWindow | null): void {
-  const { settings, models, chat, keys, usage, server, chatProxy, runtime, modelDownloader, send } = ctx
+  const { settings, models, chat, keys, usage, requestLog, server, chatProxy, runtime, modelDownloader, send } = ctx
 
   // 接线事件 → renderer（事件通道用 IpcEvent，不是 invoke 的 Ipc）
   server.onState((s) => send(IpcEvent.serverState, s))
   server.onLog((l) => send(IpcEvent.serverLog, l))
+  // 反向代理捕获的每个外部请求 → 调用记录
+  server.onRequestLog((entry) => {
+    try {
+      requestLog.log(entry)
+    } catch {
+      // 落库失败不阻断代理
+    }
+  })
   runtime.onStatus((s) => send(IpcEvent.runtime, s))
   chatProxy.onToken((e) => send(IpcEvent.chatToken, e))
   chatProxy.onEnd((e) => send(IpcEvent.chatEnd, e))
@@ -153,12 +165,16 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
 
   // ---------- server ----------
   ipcMain.handle(Ipc.serverState, async () => server.getState())
+  ipcMain.handle(Ipc.serverStatus, async () => {
+    return collectServerStatus(server.getState())
+  })
   ipcMain.handle(Ipc.serverStart, async (_e, rawParams: unknown) => {
     const params = validateParams(rawParams)
     // 密钥管理页的 key 注入 --api-key（逗号分隔，任一可用）
     const ks = keys.activeKeys()
     if (ks.length > 0) params.apiKey = ks.join(',')
-    await server.start(params, runtime.getStatus().binaryPath)
+    const rt = runtime.getStatus()
+    await server.start(params, rt.binaryPath, { version: rt.version, variant: rt.variant })
     // 启动后注入 API key（ChatProxy 调用本地 server 用）
     syncProxyKey(ctx)
     settings.save({ lastParams: params })
@@ -240,15 +256,29 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
     syncProxyKey(ctx)
     return keys.list()
   })
-
-  // ---------- 用量统计 ----------
-  ipcMain.handle(Ipc.usageSummary, async () => usage.summary())
-  ipcMain.handle(Ipc.usageDaily, async (_e, days?: number) => {
-    const d = typeof days === 'number' && days >= 1 && days <= 90 ? days : 14
-    return usage.daily(d)
+  ipcMain.handle(Ipc.keysGenerate, async () => {
+    return generateApiKeyUnique((k) => keys.list().some((x) => x.key === k))
   })
-  ipcMain.handle(Ipc.usageByModel, async () => usage.byModel())
-  ipcMain.handle(Ipc.usageReset, async () => usage.clear())
+
+  // ---------- 用量统计（源 = 反向代理捕获的调用记录，可按 api-key 区分） ----------
+  const keyArg = (v: unknown): string | undefined =>
+    typeof v === 'string' || v === null ? (v as string | undefined) : undefined
+  ipcMain.handle(Ipc.usageSummary, async (_e, key?: unknown) => usage.summary(keyArg(key)))
+  ipcMain.handle(Ipc.usageDaily, async (_e, days?: unknown, key?: unknown) => {
+    const d = typeof days === 'number' && days >= 1 && days <= 90 ? days : 14
+    return usage.daily(d, keyArg(key))
+  })
+  ipcMain.handle(Ipc.usageByModel, async (_e, key?: unknown) => usage.byModel(keyArg(key)))
+  ipcMain.handle(Ipc.usageByKey, async () => usage.byKey())
+  ipcMain.handle(Ipc.usageRequests, async (_e, limit?: unknown) => {
+    const n = typeof limit === 'number' && limit >= 1 && limit <= 1000 ? Math.floor(limit) : 200
+    return requestLog.recent(n)
+  })
+  ipcMain.handle(Ipc.usageReset, async () => {
+    usage.clear()
+    // 同步清掉 messages 的 token 列（旧数据源残留）
+    chat.clearUsage()
+  })
 
   // ---------- system ----------
   ipcMain.handle(Ipc.systemPickModel, async () => {

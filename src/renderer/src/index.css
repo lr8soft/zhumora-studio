@@ -149,11 +149,12 @@ h1, h2, h3, p { margin: 0; }
 @media (max-width: 1200px) { .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 900px) { .grid-4 { grid-template-columns: 1fr; } }
 
-/* ---------- 统计卡（用量页） ---------- */
+/* ---------- 统计卡（用量页 / 运行状态页） ---------- */
 .stat-card { display: grid; gap: 4px; padding: 14px 16px; background: var(--app-color-surface); border: 1px solid var(--app-color-border); border-radius: var(--app-radius-md); }
 .stat-card.accent { border-color: color-mix(in srgb, var(--app-color-primary) 45%, transparent); background: var(--app-color-primary-soft); }
 .stat-card .stat-label { color: var(--app-color-text-mute); font-size: 0.733rem; font-weight: 650; }
 .stat-card .stat-value { font-size: 1.3rem; font-weight: 700; }
+.stat-card .stat-sub { color: var(--app-color-text-mute); font-size: 0.683rem; }
 .stat-card.accent .stat-value { color: var(--app-color-primary-strong); }
 
 /* ---------- 用量日柱图 ---------- */

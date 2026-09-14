@@ -46,6 +46,43 @@ export interface ServerState {
   error?: string
   logTail?: string[]
   startedAt?: number
+  /** 二进制解析结果（runtime 页的 manifest 信息），运行状态页展示 */
+  runtime?: { version?: string; variant?: string }
+}
+
+/** 运行状态快照：server 进程 + 本机硬件（CPU / 内存 / GPU 实时占用） */
+export interface ServerStatus {
+  state: ServerState
+  process: {
+    pid?: number
+    /** 进程 CPU 占用（% 单核基准，多核可超 100） */
+    cpu?: number
+    /** 工作集（MB） */
+    memoryMB?: number
+    /** 运行时长（秒） */
+    uptimeSec?: number
+  }
+  cpu: {
+    /** 总 CPU 占用 % */
+    load?: number
+    cores: number
+    /** 物理内存总量 MB */
+    totalMB: number
+    /** 已用物理内存 MB */
+    usedMB: number
+  }
+  /** nvidia-smi 实时数据（NVIDIA 卡；非 NVIDIA / 不可用时为空） */
+  gpus: {
+    index: number
+    name: string
+    driver: string
+    memUsedMB: number
+    memTotalMB: number
+    utilPct: number
+    tempC: number
+    powerW: number
+  }[]
+  error?: string
 }
 
 export interface ServerLogEvent {
@@ -274,6 +311,31 @@ export interface UsageModel {
   completion: number
   total: number
   avgTps?: number
+}
+
+/** 按 API key 维度的聚合（key 为空 = 本地应用/未鉴权调用） */
+export interface UsageByKey {
+  key: string
+  name: string
+  requests: number
+  prompt: number
+  completion: number
+  total: number
+}
+
+/** 调用记录：哪个 ip + 哪个 api key 在什么时候调用的 */
+export interface UsageRequest {
+  id: number
+  ip: string
+  key: string
+  name: string
+  endpoint: string
+  status: number
+  createdAt: number
+  prompt?: number
+  completion?: number
+  /** 请求耗时 ms（用于计算速度） */
+  durationMs?: number
 }
 
 export interface Settings {

@@ -18,6 +18,7 @@ interface MessageRow {
   completion_tokens: number | null
   tokens_per_sec: number | null
   model_id: string | null
+  api_key: string | null
   created_at: number
 }
 
@@ -70,6 +71,13 @@ export class ChatRepo {
 
   renameSession(id: string, title: string): void {
     this.db.prepare('UPDATE sessions SET title = ?, updated_at = ? WHERE id = ?').run(title, Date.now(), id)
+  }
+
+  /** 清空消息的 token 计数（用量统计已迁到 usage_requests；此为旧列清理） */
+  clearUsage(): void {
+    this.db
+      .prepare('UPDATE messages SET prompt_tokens = NULL, completion_tokens = NULL, tokens_per_sec = NULL WHERE role = \'assistant\'')
+      .run()
   }
 
   messages(sessionId: string): ChatMessage[] {

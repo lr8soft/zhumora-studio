@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import type { UsageDaily, UsageModel, UsageSummary } from '@shared/types'
+import type { UsageDaily, UsageByKey, UsageModel, UsageRequest, UsageSummary } from '@shared/types'
 
 function fmtNum(n: number): string {
   if (n >= 1000000) return (n / 1000000).toFixed(2) + 'M'
@@ -8,31 +8,52 @@ function fmtNum(n: number): string {
   return n.toLocaleString()
 }
 
+function fmtDate(ms: number): string {
+  const d = new Date(ms)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
+}
+
+/** key 选择值：'__all__' = 全部；'' = 本地/无 key；其他 = 实际 key */
+const ALL = '__all__'
+
 export default function UsageView() {
   const { t } = useTranslation()
   const [summary, setSummary] = useState<UsageSummary | null>(null)
   const [daily, setDaily] = useState<UsageDaily[]>([])
   const [byModel, setByModel] = useState<UsageModel[]>([])
+  const [byKey, setByKey] = useState<UsageByKey[]>([])
+  const [requests, setRequests] = useState<UsageRequest[]>([])
+  const [selected, setSelected] = useState<string>(ALL)
 
-  const load = useCallback(async () => {
-    const [s, d, m] = await Promise.all([
-      window.zhumora.usage.summary(),
-      window.zhumora.usage.daily(14),
-      window.zhumora.usage.byModel()
-    ])
-    setSummary(s)
-    setDaily(d)
-    setByModel(m)
-  }, [])
+  const load = useCallback(
+    async (sel: string) => {
+      const kf = sel === ALL ? undefined : sel
+      const [s, d, m, k, req] = await Promise.all([
+        window.zhumora.usage.summary(kf),
+        window.zhumora.usage.daily(14, kf),
+        window.zhumora.usage.byModel(kf),
+        window.zhumora.usage.byKey(),
+        window.zhumora.usage.requests(200)
+      ])
+      setSummary(s)
+      setDaily(d)
+      setByModel(m)
+      setByKey(k)
+      setRequests(req)
+    },
+    []
+  )
 
+  // 选中 key 变化（含首次）重拉数据
   useEffect(() => {
-    void load()
-  }, [load])
+    void load(selected)
+  }, [selected, load])
 
   const reset = async () => {
     if (!window.confirm(t('usage.resetConfirm'))) return
     await window.zhumora.usage.reset()
-    await load()
+    await load(ALL)
   }
 
   // 近 14 天日历：补全没有记录的天（高度归一化用）
@@ -50,6 +71,7 @@ export default function UsageView() {
   const activeDays = days.filter(Boolean).length
 
   const modelLabel = (id: string) => (id ? id.split(/[\\/]/).pop() ?? id : t('usage.unknown'))
+  const keyLabel = (k: UsageByKey) => (k.key ? (k.name ? `${k.name} · ${maskKey(k.key)}` : maskKey(k.key)) : t('usage.local'))
 
   return (
     <div className="view">
@@ -59,7 +81,27 @@ export default function UsageView() {
           <p>{t('usage.desc')}</p>
         </div>
         <div className="header-actions">
-          <button className="btn btn-ghost" onClick={() => void load()}>↻</button>
+          {/* 按 API key 筛选 */}
+          <select
+            className="field-input"
+            style={{ width: 260, flex: 'none' }}
+            value={selected}
+            onChange={(e) => setSelected(e.target.value)}
+            title={t('usage.filterKeyTitle')}
+          >
+            <option value={ALL}>{t('usage.allKeys')}</option>
+            <option value="">{t('usage.local')}</option>
+            {byKey
+              .filter((k) => k.key !== '')
+              .map((k) => (
+                <option key={k.key} value={k.key}>
+                  {keyLabel(k)}
+                </option>
+              ))}
+          </select>
+          <button className="btn btn-ghost" onClick={() => void load(selected)}>
+            ↻
+          </button>
           <button className="btn btn-danger" onClick={() => void reset()} disabled={!summary || summary.requests === 0}>
             {t('usage.reset')}
           </button>
@@ -97,16 +139,64 @@ export default function UsageView() {
                       : dayLabel(new Date(start.getTime() - (13 - i) * 86400000))
                   }
                 >
-                  <div
-                    className={`usage-bar ${total > 0 ? 'on' : ''}`}
-                    style={{ height: `${h}px` }}
-                  />
+                  <div className={`usage-bar ${total > 0 ? 'on' : ''}`} style={{ height: `${h}px` }} />
                   <span className="usage-bar-label">{dayLabel(new Date(start.getTime() - (13 - i) * 86400000))}</span>
                 </div>
               )
             })}
           </div>
         </div>
+      </div>
+
+      {/* 按 API key */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="card-head">
+          <h3>
+            {t('usage.byKey')}
+            <span className="sub">{t('usage.byKeyHint')}</span>
+          </h3>
+        </div>
+        {byKey.length === 0 ? (
+          <div className="empty-state" style={{ flex: 'none', padding: 28 }}>
+            <div>
+              <div className="mark">🔑</div>
+              {t('usage.empty')}
+            </div>
+          </div>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t('usage.thKey')}</th>
+                <th>{t('usage.thReq')}</th>
+                <th>{t('usage.thPrompt')}</th>
+                <th>{t('usage.thComp')}</th>
+                <th>{t('usage.thTotal')}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {byKey.map((k) => {
+                const isSel = (selected === ALL ? undefined : selected) === k.key
+                return (
+                  <tr key={k.key || 'local'} style={isSel ? { background: 'var(--app-active-bg)' } : undefined}>
+                    <td
+                      className="mono"
+                      style={{ fontWeight: 600, cursor: 'pointer' }}
+                      onClick={() => setSelected(selected === k.key && selected !== ALL ? ALL : k.key)}
+                      title={t('usage.filterKeyTitle')}
+                    >
+                      {keyLabel(k)}
+                    </td>
+                    <td>{fmtNum(k.requests)}</td>
+                    <td>{fmtNum(k.prompt)}</td>
+                    <td>{fmtNum(k.completion)}</td>
+                    <td style={{ fontWeight: 650 }}>{fmtNum(k.total)}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* 按模型 */}
@@ -136,7 +226,9 @@ export default function UsageView() {
             <tbody>
               {byModel.map((m) => (
                 <tr key={m.modelId || 'unknown'}>
-                  <td className="mono" style={{ wordBreak: 'break-all', fontWeight: 600 }}>{modelLabel(m.modelId)}</td>
+                  <td className="mono" style={{ wordBreak: 'break-all', fontWeight: 600 }}>
+                    {modelLabel(m.modelId)}
+                  </td>
                   <td>{fmtNum(m.requests)}</td>
                   <td>{fmtNum(m.prompt)}</td>
                   <td>{fmtNum(m.completion)}</td>
@@ -146,6 +238,70 @@ export default function UsageView() {
               ))}
             </tbody>
           </table>
+        )}
+      </div>
+
+      {/* 调用记录：ip + api key + 时间 */}
+      <div className="card" style={{ marginTop: 14 }}>
+        <div className="card-head">
+          <h3>
+            {t('usage.requests2')}
+            <span className="sub">{t('usage.requestsHint')}</span>
+          </h3>
+        </div>
+        {requests.length === 0 ? (
+          <div className="empty-state" style={{ flex: 'none', padding: 28 }}>
+            <div>
+              <div className="mark">📡</div>
+              {t('usage.reqEmpty')}
+            </div>
+          </div>
+        ) : (
+          <div style={{ maxHeight: 320, overflowY: 'auto' }}>
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t('usage.thTime')}</th>
+                  <th>{t('usage.thIp')}</th>
+                  <th>{t('usage.thKey')}</th>
+                  <th>{t('usage.thEndpoint')}</th>
+                  <th>{t('usage.thStatus')}</th>
+                  <th>{t('usage.thTokens')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {requests.map((r) => (
+                  <tr key={r.id}>
+                    <td className="mono" style={{ whiteSpace: 'nowrap', color: 'var(--app-color-text-mute)' }}>
+                      {fmtDate(r.createdAt)}
+                    </td>
+                    <td className="mono">{r.ip}</td>
+                    <td style={{ fontWeight: 600 }}>
+                      {r.key ? (
+                        <span>
+                          {r.name ? `${r.name} · ` : ''}
+                          <span className="mono">{maskKey(r.key)}</span>
+                        </span>
+                      ) : (
+                        <span className="badge badge-stopped">{t('usage.local')}</span>
+                      )}
+                    </td>
+                    <td className="mono" style={{ wordBreak: 'break-all' }}>
+                      {r.endpoint}
+                    </td>
+                    <td>
+                      <span className={`badge ${r.status < 400 ? 'badge-ready' : 'badge-error'}`}>{r.status}</span>
+                    </td>
+                    <td className="mono" style={{ whiteSpace: 'nowrap' }}>
+                      {r.completion !== undefined || r.prompt !== undefined
+                        ? `${fmtNum(r.prompt ?? 0)} + ${fmtNum(r.completion ?? 0)}`
+                        : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
@@ -159,6 +315,11 @@ function StatCard({ label, value, accent }: { label: string; value: string; acce
       <strong className="stat-value">{value}</strong>
     </div>
   )
+}
+
+function maskKey(key: string): string {
+  if (key.length <= 8) return '••••••••'
+  return key.slice(0, 4) + '••••••••' + key.slice(-4)
 }
 
 function dayKey(ts: number): string {

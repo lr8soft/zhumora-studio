@@ -24,6 +24,16 @@ export default function KeysView() {
   const [error, setError] = useState('')
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
+  const generate = async () => {
+    setError('')
+    try {
+      const k = await window.zhumora.keys.generate()
+      setKey(k)
+    } catch (e) {
+      setError((e as Error).message)
+    }
+  }
+
   const add = async () => {
     const k = key.trim()
     if (k.length < 4) {
@@ -100,6 +110,9 @@ export default function KeysView() {
               onChange={(e) => setKey(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && void add()}
             />
+            <button className="btn" onClick={() => void generate()} title={t('keys.generate')}>
+              ⚄ {t('keys.generate')}
+            </button>
             <button className="btn btn-primary" disabled={busy} onClick={() => void add()}>
               {t('keys.add')}
             </button>

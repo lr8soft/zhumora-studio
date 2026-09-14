@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 export function runMigrations(db: Database.Database): void {
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
@@ -63,6 +63,37 @@ export function runMigrations(db: Database.Database): void {
       if (!hasModelId) {
         db.exec(`ALTER TABLE messages ADD COLUMN model_id TEXT`)
       }
+    }
+    if (current < 4) {
+      // 调用记录（ip / key / 端点 / 时间 / token）——反向代理捕获所有请求，
+      // 用量统计改为以本表为源，从而可按 api-key 区分
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS usage_requests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          ip TEXT NOT NULL,
+          api_key TEXT NOT NULL DEFAULT '',
+          endpoint TEXT NOT NULL DEFAULT '',
+          status INTEGER NOT NULL,
+          model TEXT,
+          prompt_tokens INTEGER,
+          completion_tokens INTEGER,
+          duration_ms INTEGER,
+          created_at INTEGER NOT NULL
+        );
+        CREATE INDEX idx_usage_requests_time ON usage_requests(created_at DESC);
+        CREATE INDEX idx_usage_requests_key ON usage_requests(api_key);
+      `)
+      // 回填：v3 及以前的本地聊天 token 记录 → usage_requests（key = ''，来源 = 应用内）
+      db.exec(
+        `INSERT INTO usage_requests (ip, api_key, endpoint, status, model, prompt_tokens, completion_tokens, duration_ms, created_at)
+         SELECT 'local', '', 'POST /v1/chat/completions', 200, model_id,
+                prompt_tokens, completion_tokens,
+                CASE WHEN tokens_per_sec > 0 AND completion_tokens > 0
+                     THEN CAST(completion_tokens / tokens_per_sec * 1000 AS INTEGER) END,
+                created_at
+         FROM messages
+         WHERE role = 'assistant' AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)`
+      )
     }
     db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(
       'schema_version',

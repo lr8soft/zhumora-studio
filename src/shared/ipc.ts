@@ -19,8 +19,11 @@ import type {
   RuntimeStatus,
   ServerLogEvent,
   ServerState,
+  ServerStatus,
   Settings,
+  UsageByKey,
   UsageModel,
+  UsageRequest,
   UsageSummary
 } from './types.ts'
 
@@ -38,6 +41,7 @@ export const Ipc = {
   serverStart: 'server:start',
   serverStop: 'server:stop',
   serverLogs: 'server:logs',
+  serverStatus: 'server:status',
   runtimeStatus: 'runtime:status',
   runtimeAssets: 'runtime:assets',
   runtimeDownload: 'runtime:download',
@@ -52,9 +56,12 @@ export const Ipc = {
   keysList: 'keys:list',
   keysAdd: 'keys:add',
   keysRemove: 'keys:remove',
+  keysGenerate: 'keys:generate',
   usageSummary: 'usage:summary',
   usageDaily: 'usage:daily',
   usageByModel: 'usage:by-model',
+  usageByKey: 'usage:by-key',
+  usageRequests: 'usage:requests',
   usageReset: 'usage:reset',
   settingsGet: 'settings:get',
   settingsSave: 'settings:save',
@@ -114,6 +121,8 @@ export interface ApiServer {
   start(params: LaunchParams): Promise<void>
   stop(): Promise<void>
   logs(): Promise<string[]>
+  /** 运行状态快照（server 进程 + 硬件：CPU / 内存 / GPU） */
+  status(): Promise<ServerStatus>
 }
 
 export interface ApiRuntime {
@@ -137,13 +146,19 @@ export interface ApiKeys {
   list(): Promise<ApiKeyInfo[]>
   add(name: string, key: string): Promise<ApiKeyInfo[]>
   remove(id: string): Promise<ApiKeyInfo[]>
+  /** 生成随机 key（不落库），供“生成”按钮回填 */
+  generate(): Promise<string>
 }
 
 export interface ApiUsage {
-  summary(): Promise<UsageSummary>
+  /** key: undefined = 全部；'' = 本地/无 key；其他 = 指定 api key */
+  summary(key?: string): Promise<UsageSummary>
   /** days: 统计最近多少天（含今天），默认 14 */
-  daily(days?: number): Promise<UsageDaily[]>
-  byModel(): Promise<UsageModel[]>
+  daily(days?: number, key?: string): Promise<UsageDaily[]>
+  byModel(key?: string): Promise<UsageModel[]>
+  byKey(): Promise<UsageByKey[]>
+  /** 调用记录：ip + key + 时间，limit 默认 200 */
+  requests(limit?: number): Promise<UsageRequest[]>
   reset(): Promise<void>
 }
 

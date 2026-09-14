@@ -6,6 +6,7 @@ import Sidebar, { type ViewId } from './components/Sidebar'
 import RuntimeView from './views/RuntimeView'
 import ModelsView from './views/ModelsView'
 import ServerView from './views/ServerView'
+import StatusView from './views/StatusView'
 import ChatView from './views/ChatView'
 import KeysView from './views/KeysView'
 import UsageView from './views/UsageView'
@@ -53,6 +54,7 @@ export default function App() {
           {view === 'runtime' && <RuntimeView />}
           {view === 'models' && <ModelsView />}
           {view === 'server' && <ServerView />}
+          {view === 'status' && <StatusView />}
           {view === 'chat' && <ChatView />}
           {view === 'keys' && <KeysView />}
           {view === 'usage' && <UsageView />}

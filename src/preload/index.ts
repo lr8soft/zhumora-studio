@@ -35,7 +35,8 @@ const api: ZhumoraApi = {
     state: () => ipcRenderer.invoke(Ipc.serverState),
     start: (params) => ipcRenderer.invoke(Ipc.serverStart, params),
     stop: () => ipcRenderer.invoke(Ipc.serverStop),
-    logs: () => ipcRenderer.invoke(Ipc.serverLogs)
+    logs: () => ipcRenderer.invoke(Ipc.serverLogs),
+    status: () => ipcRenderer.invoke(Ipc.serverStatus)
   },
   runtime: {
     status: () => ipcRenderer.invoke(Ipc.runtimeStatus),
@@ -55,12 +56,15 @@ const api: ZhumoraApi = {
   keys: {
     list: () => ipcRenderer.invoke(Ipc.keysList),
     add: (name: string, key: string) => ipcRenderer.invoke(Ipc.keysAdd, name, key),
-    remove: (id: string) => ipcRenderer.invoke(Ipc.keysRemove, id)
+    remove: (id: string) => ipcRenderer.invoke(Ipc.keysRemove, id),
+    generate: () => ipcRenderer.invoke(Ipc.keysGenerate)
   },
   usage: {
-    summary: () => ipcRenderer.invoke(Ipc.usageSummary),
-    daily: (days?: number) => ipcRenderer.invoke(Ipc.usageDaily, days),
-    byModel: () => ipcRenderer.invoke(Ipc.usageByModel),
+    summary: (key?: string) => ipcRenderer.invoke(Ipc.usageSummary, key),
+    daily: (days?: number, key?: string) => ipcRenderer.invoke(Ipc.usageDaily, days, key),
+    byModel: (key?: string) => ipcRenderer.invoke(Ipc.usageByModel, key),
+    byKey: () => ipcRenderer.invoke(Ipc.usageByKey),
+    requests: (limit?: number) => ipcRenderer.invoke(Ipc.usageRequests, limit),
     reset: () => ipcRenderer.invoke(Ipc.usageReset)
   },
   settings: {

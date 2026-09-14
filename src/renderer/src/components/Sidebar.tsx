@@ -1,12 +1,13 @@
 import { useAppStore } from '../store'
 import { useTranslation } from 'react-i18next'
 
-export type ViewId = 'runtime' | 'models' | 'server' | 'chat' | 'keys' | 'usage' | 'settings'
+export type ViewId = 'runtime' | 'models' | 'server' | 'status' | 'chat' | 'keys' | 'usage' | 'settings'
 
 const NAV: { id: ViewId; labelKey: string }[] = [
   { id: 'runtime', labelKey: 'sidebar.runtime' },
   { id: 'models', labelKey: 'sidebar.models' },
   { id: 'server', labelKey: 'sidebar.server' },
+  { id: 'status', labelKey: 'sidebar.status' },
   { id: 'chat', labelKey: 'sidebar.chat' },
   { id: 'keys', labelKey: 'sidebar.keys' },
   { id: 'usage', labelKey: 'sidebar.usage' },
@@ -58,9 +59,13 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
       <nav className="side-nav">
         {NAV.map((item) => {
           const dot =
-            item.id === 'server' ? serverState.state : item.id === 'runtime' ? runtime.state : null
+            item.id === 'server' || item.id === 'status'
+              ? serverState.state
+              : item.id === 'runtime'
+                ? runtime.state
+                : null
           const activeDot =
-            item.id === 'server'
+            item.id === 'server' || item.id === 'status'
               ? dot === 'ready'
                 ? 'dot-ready'
                 : dot === 'starting'

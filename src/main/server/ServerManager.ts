@@ -4,6 +4,7 @@ import { existsSync } from 'fs'
 import { dirname } from 'path'
 import { buildArgs, paramsEqual, sanitizeParams } from '@shared/buildArgs'
 import type { LaunchParams, ServerState, ServerLogEvent, Settings } from '@shared/types'
+import { startProxy, findFreePort, PROXY_INTERNAL_MARK, type ProxyHandle } from './proxy'
 
 const HEALTH_POLL_MS = 1000
 const HEALTH_TIMEOUT_MS = 120000 // 大模型加载慢，给 2 分钟
@@ -12,15 +13,23 @@ const LOG_TAIL = 200
 
 type StateListener = (state: ServerState) => void
 type LogListener = (log: ServerLogEvent) => void
+type RequestLogListener = (entry: { ip: string; apiKey: string; endpoint: string; status: number }) => void
 
+/**
+ * 架构：llama-server 绑定 127.0.0.1:<internalPort>，
+ * 对外端口 <port> 由反向代理监听（见 proxy.ts），所有请求（含外部应用）
+ * 都经过代理 → 可记录 ip + api key + 端点 + 时间（用量统计的“调用记录”）。
+ */
 export class ServerManager {
   private state: ServerState = { state: 'stopped' }
   private proc: ChildProcess | null = null
+  private proxy: ProxyHandle | null = null
   private logs: string[] = []
   private healthTimer: NodeJS.Timeout | null = null
   private stopTimer: NodeJS.Timeout | null = null
   private stateListener: StateListener | null = null
   private logListener: LogListener | null = null
+  private requestLogListener: RequestLogListener | null = null
   private lastParams: LaunchParams | null = null
   private stopping = false
 
@@ -31,6 +40,9 @@ export class ServerManager {
   }
   onLog(cb: LogListener): void {
     this.logListener = cb
+  }
+  onRequestLog(cb: RequestLogListener): void {
+    this.requestLogListener = cb
   }
 
   getState(): ServerState {
@@ -52,7 +64,11 @@ export class ServerManager {
     return null
   }
 
-  async start(params: LaunchParams, runtimeBinary?: string): Promise<void> {
+  async start(
+    params: LaunchParams,
+    runtimeBinary?: string,
+    runtimeInfo?: { version?: string; variant?: string }
+  ): Promise<void> {
     if (this.state.state === 'starting' || this.state.state === 'ready') {
       throw new Error('server 正在运行，请先停止')
     }
@@ -66,21 +82,24 @@ export class ServerManager {
         '未找到 llama-server。请在"运行时"页下载构建，或在设置中手动指定 llama-server 路径。'
       )
     }
-    const args = buildArgs(params)
 
-    this.stopping = false
-    this.lastParams = params
     const host = typeof params.host === 'string' && params.host ? params.host : '127.0.0.1'
     const port = typeof params.port === 'number' ? params.port : 1234
 
-    this.setState({
-      state: 'starting',
-      host,
-      port,
-      modelPath,
-      error: undefined,
-      startedAt: Date.now()
-    })
+    // 1) llama-server 内部端口（仅本机），对外走反向代理
+    const internalPort = await findFreePort()
+    const args = buildArgs(params)
+    // 覆盖监听地址/端口：内部只绑 127.0.0.1:internalPort
+    const hostIdx = args.indexOf('--host')
+    if (hostIdx >= 0 && hostIdx + 1 < args.length) args[hostIdx + 1] = '127.0.0.1'
+    else args.unshift('--host', '127.0.0.1')
+    const portIdx = args.indexOf('--port')
+    if (portIdx >= 0 && portIdx + 1 < args.length) args[portIdx + 1] = String(internalPort)
+    else args.push('--port', String(internalPort))
+
+    // 2) 对外代理
+    this.stopping = false
+    this.lastParams = params
     this.logs = []
 
     const proc = spawn(binary, args, {
@@ -99,6 +118,7 @@ export class ServerManager {
     proc.on('exit', (code, signal) => {
       this.proc = null
       this.clearHealthTimer()
+      this.closeProxy()
       if (this.stopping) {
         this.setState({ state: 'stopped' })
         return
@@ -119,16 +139,41 @@ export class ServerManager {
       }
     })
 
+    let proxy: ProxyHandle
+    try {
+      proxy = await startProxy(host, port, '127.0.0.1', internalPort, (entry) => {
+        this.requestLogListener?.(entry)
+      })
+    } catch (e) {
+      await this.stop().catch(() => undefined)
+      throw new Error(`无法监听端口 ${port}（被占用？）：${(e as Error).message}`)
+    }
+    this.proxy = proxy
+
+    this.setState({
+      state: 'starting',
+      host,
+      port,
+      modelPath,
+      error: undefined,
+      startedAt: Date.now(),
+      runtime: runtimeInfo
+    })
     this.setState({ ...this.state, pid: proc.pid })
-    this.pollHealth(host, port, binary)
+    this.pollHealth('127.0.0.1', internalPort)
   }
 
   async stop(): Promise<void> {
-    if (!this.proc || this.state.state === 'stopped') return
+    if (!this.proc && !this.proxy) return
     this.stopping = true
     this.clearHealthTimer()
-    this.setState({ state: 'stopping' })
+    this.closeProxy()
     const proc = this.proc
+    if (!proc) {
+      this.setState({ state: 'stopped' })
+      return
+    }
+    this.setState({ state: 'stopping' })
     try {
       proc.kill('SIGTERM')
     } catch {
@@ -143,12 +188,28 @@ export class ServerManager {
     }, STOP_GRACE_MS)
   }
 
-  private pollHealth(host: string, port: number, _binary: string): void {
+  private closeProxy(): void {
+    if (this.proxy) {
+      try {
+        this.proxy.server.closeAllConnections?.()
+      } catch {
+        // ignore
+      }
+      this.proxy.close()
+      this.proxy = null
+    }
+  }
+
+  /** 健康检查走内部端口（带标记，不记入调用记录） */
+  private pollHealth(host: string, port: number): void {
     const deadline = Date.now() + HEALTH_TIMEOUT_MS
     const tick = async () => {
       if (this.stopping || !this.proc) return
       try {
-        const res = await fetch(`http://${host}:${port}/health`, { signal: AbortSignal.timeout(2000) })
+        const res = await fetch(`http://${host}:${port}/health`, {
+          headers: { [PROXY_INTERNAL_MARK]: '1' },
+          signal: AbortSignal.timeout(2000)
+        })
         if (res.ok) {
           this.setState({ state: 'ready', error: undefined })
           return

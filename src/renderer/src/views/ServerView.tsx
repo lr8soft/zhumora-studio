@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useAppStore } from '../store'
 import ParamForm from '../components/ParamForm'
 import { useTranslation } from 'react-i18next'
@@ -18,8 +18,6 @@ export default function ServerView() {
   const settings = useAppStore((s) => s.settings)
   const keys = useAppStore((s) => s.keys)
   const [toast, setToast] = useState<string | null>(null)
-  const logRef = useRef<HTMLDivElement>(null)
-  const serverLogs = useAppStore((s) => s.serverLogs)
 
   const running = serverState.state === 'starting' || serverState.state === 'ready'
   const stale =
@@ -34,11 +32,6 @@ export default function ServerView() {
     .join(',')
   const keysStale =
     serverState.state === 'ready' && keys.map((k) => k.key).sort().join(',') !== lastKeys
-
-  useEffect(() => {
-    const el = logRef.current
-    if (el) el.scrollTop = el.scrollHeight
-  }, [serverLogs.length])
 
   const showToast = (msg: string) => {
     setToast(msg)
@@ -278,25 +271,6 @@ export default function ServerView() {
           </div>
 
           <ParamForm value={paramDraft} onChange={(p) => { setParamDraft(p); setParamDirty(true) }} disabled={running} />
-        </div>
-      </div>
-
-      {/* 日志 */}
-      <div className="card" style={{ marginTop: 14 }}>
-        <div className="card-head">
-          <h3>{t('server.logs')}</h3>
-          <span className="sub">{t('server.logsSub')}</span>
-        </div>
-        <div className="log-view" ref={logRef}>
-          {serverLogs.length === 0 ? (
-            <span style={{ color: '#5c6a77' }}>{t('server.noLogs')}</span>
-          ) : (
-            serverLogs.map((l, i) => (
-              <div key={i} className={l.startsWith('[err]') ? 'err' : undefined}>
-                {l}
-              </div>
-            ))
-          )}
         </div>
       </div>
 
