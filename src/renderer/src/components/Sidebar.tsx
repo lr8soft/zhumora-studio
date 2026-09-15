@@ -18,17 +18,24 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
   const { t } = useTranslation()
   const serverState = useAppStore((s) => s.serverState)
   const runtime = useAppStore((s) => s.runtime)
+  const settings = useAppStore((s) => s.settings)
 
-  const dotClass =
-    runtime.state === 'ready'
+  // 用户已指定自定义 llama-server 时，即使自动下载的 runtime 处于 error/detected，
+  // 二进制也真正可用（ServerManager 优先用自定义路径），侧栏应显示为就绪而非报错。
+  const hasCustomBinary = Boolean(settings?.llamaBinary?.trim())
+
+  const dotClass = hasCustomBinary
+    ? 'dot-ready'
+    : runtime.state === 'ready'
       ? 'dot-ready'
       : runtime.state === 'downloading' || runtime.state === 'extracting'
         ? 'dot-downloading'
         : runtime.state === 'error'
           ? 'dot-error'
           : 'dot-stopped'
-  const dotLabel =
-    runtime.state === 'ready'
+  const dotLabel = hasCustomBinary
+    ? t('runtime.customTitle')
+    : runtime.state === 'ready'
       ? `llama ${runtime.version ?? ''} · ${runtime.variant ?? ''}`
       : runtime.state === 'downloading'
         ? t('sidebar.downloading')
