@@ -96,22 +96,23 @@ main 进程代码**不得假设单平台**。参照实现：`main/server/status.
 - 优雅停止：`SIGTERM` → 宽限 3s → `SIGKILL`（Node `child.kill` 三平台同义）。
 - 端口不做预检，靠 `listen` 失败走统一错误路径（占用 → 提示用户改端口）。
 
-### 2.4 llama.cpp 运行时获取（M4 落地，当前仅 Windows）
+### 2.4 llama.cpp 运行时获取（已三平台）
 
-现状：`github.ts` 只解析 bin-win asset，`RuntimeManager` 用 yauzl 解 zip，二进制 `llama-server.exe`。三平台化时按下表收敛到平台策略模块：
+`github.ts` 按平台解析 asset（`assetRe(platform)`，bin 段映射 win→win / linux→ubuntu / macos→macos），`RuntimeManager` 按扩展名分派解压（`.zip`→yauzl，`.tar.gz`→系统 `tar`），二进制名 `llama-server.exe` / `llama-server`。
 
 | 平台 | 发布形态 | 关键点 |
 |---|---|---|
-| Windows | `llama-bNNNN-bin-win-<variant>-<arch>.zip` | 已实现；cuda 变体需 cudart 伴生包（缺了 ggml-cuda.dll 加载失败） |
-| Linux | `llama-bNNNN-bin-ubuntu-<variant>-<arch>.tar.zst` | 发行版段是 ubuntu；解压 tar.zst（无 Node 内建，选系统 `tar` 或加 zstd 依赖）；变体含 cuda-12.x / vulkan / rocm / cpu |
-| macOS | `llama-bNNNN-bin-macos-<arch>.zip` | 无 GPU 变体段（Metal 内置）；Apple Silicon 自动走 Metal |
+| Windows | `llama-bNNNN-bin-win-<variant>-<arch>.zip` | cuda 变体需 cudart 伴生包 `cudart-llama-bin-win-cuda-<v>-<arch>.zip`（文件名不带 build 号；缺了 ggml-cuda.dll 加载失败） |
+| Linux | `llama-bNNNN-bin-ubuntu[-<variant>]-<arch>.tar.gz` | 发行版段是 ubuntu（不是 linux）；无变体段 = cpu；变体含 vulkan / rocm-10.0 / openvino / sycl-fp32 / sycl-fp16 / cpu（**官方无 Linux CUDA 构建**，NVIDIA 走自定义二进制或 vulkan 兜底） |
+| macOS | `llama-bNNNN-bin-macos-<arch>.tar.gz` | 无 GPU 变体段（Metal 内置）；解析为 variant=cpu |
 
 规范：
 
-1. **asset 正则 / 解压 / 二进制名** 三处差异收敛为一个 `runtime/platform.ts` 策略（`{ assetPattern, extract(), binaryName, companion? }`），RuntimeManager 不含平台 if。
-2. 平台无关的部分（Downloader 续传/校验、detect 探测、pickVariant 决策、manifest 结构）**保持不动复用**。
+1. **asset 正则 / 解压 / 二进制名** 三处差异各自收敛（`github.ts` 的 `BIN_SEG`/`EXT` 映射、`RuntimeManager` 的 `binaryName()` 与 zip/tar.gz 分派），不让平台判断散落。
+2. 平台无关的部分（Downloader 续传/校验、detect 探测、pickVariant 决策、manifest 结构）复用不动。
 3. `/releases/latest` 指向 stable 无二进制 → 继续遍历 `releases?per_page=N` 取第一个 prerelease 且 tag 匹配 `^b\d+$`。
-4. 下载中断保留 `.part`/`.tar.zst.part` 续传；校验失败删临时文件重下。
+4. 下载中断保留 `.part` 续传；校验失败删临时文件重下。
+5. asset 命名变更（如 bin 段 / 伴生包前缀）必须用真实 release 文件名回归 `assetRe` / `CUDART_RE`（见 `tests/buildArgs.test.ts`）。
 
 ### 2.5 打包与发布
 
@@ -129,12 +130,8 @@ main 进程代码**不得假设单平台**。参照实现：`main/server/status.
 
 ---
 
-## 3. 已知 Windows-only 残留（M4 前清除清单）
+## 3. 已知 Windows-only 残留（已清除）
 
-| 位置 | 问题 | 处理 |
-|---|---|---|
-| `main/runtime/github.ts` | 仅 bin-win asset 正则 + cudart 伴生包 | 抽 platform 策略 |
-| `main/runtime/RuntimeManager.ts` | 二进制名 `llama-server.exe`、仅 zip 解压 | 抽 platform 策略 |
-| `main/ipc/handlers.ts` | `system:pick-binary` 对话框 filter 含 `.exe` | 按平台给 filter（无副作用，低优先级） |
+三平台化已完成：`github.ts` 按平台解析 asset（bin 段 win/ubuntu/macos）、`RuntimeManager.ts` 按扩展名分派 zip / tar.gz 解压且二进制名按平台、`handlers.ts` 的 `system:pick-binary` filter 已按平台区分（win 才给 `.exe`）。
 
 已合规的参照实现：`main/server/status.ts`、`main/runtime/detect.ts`。

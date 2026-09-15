@@ -15,20 +15,25 @@ interface GhRelease {
   assets: GhAsset[]
 }
 
-type Platform = 'win' | 'linux' | 'macos'
+export type Platform = 'win' | 'linux' | 'macos'
 
 const EXT: Record<Platform, string> = { win: 'zip', linux: 'tar.gz', macos: 'tar.gz' }
+
+// release 的 bin 段平台名：Linux 构建的发行版段是 ubuntu（不是 linux）
+const BIN_SEG: Record<Platform, string> = { win: 'win', linux: 'ubuntu', macos: 'macos' }
 
 // asset 命名（bin 段按平台）：
 //   llama-b10951-bin-win-cuda-12.4-x64.zip / -win-cpu-x64.zip / -win-vulkan-x64.zip
 //   llama-b10951-bin-ubuntu-x64.tar.gz / -ubuntu-vulkan-x64.tar.gz / -ubuntu-rocm-10.0-x64.tar.gz
 //   llama-b10951-bin-macos-arm64.tar.gz / -macos-x64.tar.gz
-// 注意变体段可含连字符（cuda-12.4 / opencl-adreno / rocm-10.0），必须允许 -
-function assetRe(platform: Platform): RegExp {
-  return new RegExp(`^llama-(b\\d+)-bin-${platform}(-[\\w.]+)?-(\\w+)\\.${EXT[platform]}$`)
+// 变体段可含连字符与点（cuda-12.4 / rocm-10.0 / opencl-adreno / sycl-fp32），
+// 用贪婪 .+? 捕获；无变体段（如 ubuntu-x64）= cpu，由调用方兜底
+export function assetRe(platform: Platform): RegExp {
+  return new RegExp(`^llama-(b\\d+)-bin-${BIN_SEG[platform]}(?:-(.+?))?-(\\w+)\\.${EXT[platform]}$`)
 }
-// 仅 Windows 有：CUDA 变体的运行时 dll（cudart/cublas）独立伴生包
-const CUDART_RE = /^cudart-llama-(b\d+)-bin-win-cuda-([\w.-]+)-(\w+)\.zip$/
+// 仅 Windows 有：CUDA 变体的运行时 dll（cudart/cublas）独立伴生包，
+// 文件名不带 build 号（cudart-llama-bin-win-cuda-12.4-x64.zip），组 1=cuda 版本、组 2=架构
+export const CUDART_RE = /^cudart-llama-(?:b\d+-)?bin-win-cuda-([\w.-]+)-(\w+)\.zip$/
 
 function platformOf(): Platform {
   return process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'macos' : 'linux'
@@ -59,7 +64,7 @@ export async function fetchPlatformAssets(): Promise<{ version: string; platform
     assets.push({
       name: a.name,
       version: m[1],
-      variant: m[2] ? m[2].slice(1) : 'cpu',
+      variant: m[2] ?? 'cpu',
       arch: m[3],
       size: a.size,
       sha256: a.digest?.replace(/^sha256:/, ''),
@@ -74,7 +79,8 @@ export async function fetchPlatformAssets(): Promise<{ version: string; platform
       if (!asset.variant.startsWith('cuda')) continue
       const found = target.assets.find((a) => {
         const m2 = a.name.match(CUDART_RE)
-        return !!m2 && m2[1] === asset.version && m2[2] === asset.variant.slice(4) && m2[3] === asset.arch
+        // CUDART_RE 组：1=cuda 版本 2=架构；文件名不带 build 号，不校验 version
+        return !!m2 && m2[1] === asset.variant.slice('cuda-'.length) && m2[2] === asset.arch
       })
       if (found) {
         asset.companion = {

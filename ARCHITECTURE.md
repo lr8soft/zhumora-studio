@@ -307,20 +307,20 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 - 优雅停止：`SIGTERM` → 宽限 3s → `SIGKILL`（Node `child.kill` 三平台同义，Windows 上 SIGTERM 即终止）。
 - 不做端口预检，靠 listen 失败走统一错误路径。
 
-**D. llama.cpp 运行时获取（M4 落地项，当前仅 Windows）**
+**D. llama.cpp 运行时获取（已三平台）**
 
-现状如实记录：`github.ts` 只解析 `bin-win` asset（`llama-bNNNN-bin-win-<variant>-<arch>.zip` + cuda 的 cudart 伴生包），`RuntimeManager` 用 yauzl 解 zip，二进制名 `llama-server.exe`。三平台化时：
+`github.ts` 按平台解析 asset：bin 段映射 win→`win` / linux→`ubuntu` / macos→`macos`（`assetRe(platform)`）；`RuntimeManager` 按扩展名分派解压（`.zip`→yauzl，`.tar.gz`→系统 `tar`），二进制名 `llama-server.exe` / `llama-server`。
 
 | 平台 | llama.cpp 发布形态 | 差异 |
 |---|---|---|
-| Windows | `llama-bNNNN-bin-win-<variant>-<arch>.zip` | 已实现；cuda 需 cudart 伴生包 |
-| Linux | `llama-bNNNN-bin-ubuntu-<variant>-<arch>.tar.zst`（发行版 ubuntu，变体含 cuda-12.x/vulkan/rocm/cpu） | tar.zst 解压（node 无内建，需 zstd 依赖或调系统 `tar`）；无伴生包 |
-| macOS | `llama-bNNNN-bin-macos-<arch>.zip`（无 GPU 变体段，Metal 内置） | 变体名不同；Apple Silicon 走 Metal |
+| Windows | `llama-bNNNN-bin-win-<variant>-<arch>.zip` | cuda 需 cudart 伴生包（文件名不带 build 号） |
+| Linux | `llama-bNNNN-bin-ubuntu[-<variant>]-<arch>.tar.gz`（发行版段是 ubuntu；无变体段=cpu；变体含 vulkan/rocm/openvino/sycl，**无官方 CUDA 构建**） | 系统 `tar` 解压；NVIDIA 走自定义二进制或 vulkan 兜底 |
+| macOS | `llama-bNNNN-bin-macos-<arch>.tar.gz`（无 GPU 变体段，Metal 内置） | 解析为 variant=cpu；Apple Silicon 走 Metal |
 
 规范：
-1. asset 正则、解压、二进制名三处做成**按平台分发的策略**（一个 `platform.ts` 收敛），不让平台判断散落在 RuntimeManager 里。
-2. 探测（detect.ts）与变体决策（pickVariant）已跨平台，M4 复用不动。
-3. 下载/续传/校验（Downloader.ts）是平台无关的，M4 复用不动。
+1. asset 正则、解压、二进制名三处按平台分发（`github.ts` 的 `BIN_SEG`/`EXT` 映射 + `RuntimeManager` 的 `binaryName()` 与扩展名分派），不让平台判断散落。
+2. 探测（detect.ts）与变体决策（pickVariant）跨平台。
+3. 下载/续传/校验（Downloader.ts）平台无关。
 
 **E. 打包与发布**
 
@@ -332,15 +332,11 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 - 改动 main 进程系统交互后，`npx tsc --noEmit` + `npm test` + `npx electron-vite build` 必须全绿。
 - 平台相关改动：能在目标平台跑就真机验证；不能跑时至少走读所有 `process.platform` 分支。
 
-### 7.3 已知 Windows-only 残留（M4 前需清除）
+### 7.3 已知 Windows-only 残留（已清除）
 
-| 位置 | 问题 |
-|---|---|
-| `runtime/github.ts` | 仅 bin-win asset 正则与 cudart 伴生包逻辑 |
-| `runtime/RuntimeManager.ts` | 二进制名 `llama-server.exe`、yauzl 仅 zip |
-| `ipc/handlers.ts` | `system:pick-binary` 对话框 filter 含 `.exe`（无副作用，Linux/macOS 忽略该扩展即可） |
+三平台化已完成：`runtime/github.ts` 按平台解析 asset（bin 段 win/ubuntu/macos）、`runtime/RuntimeManager.ts` 二进制名按平台 + zip / tar.gz 分派解压、`ipc/handlers.ts` 的 `system:pick-binary` filter 已按平台区分（win 才给 `.exe`）。
 
-`status.ts`、`detect.ts` 已按 §7.2-A 实现三平台分支，作为其余模块的参照实现。
+`status.ts`、`detect.ts` 按 §7.2-A 实现三平台分支，作为其余模块的参照实现。
 
 ## 8. 待确认
 

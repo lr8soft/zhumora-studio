@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { buildArgs, defaultParams, paramsEqual, sanitizeParams } from '../src/shared/buildArgs.ts'
 import { LAUNCH_PARAMS } from '../src/shared/launchParams.ts'
 import { pickVariant } from '../src/main/runtime/detect.ts'
+import { assetRe, CUDART_RE } from '../src/main/runtime/github.ts'
 import type { GpuProbeResult, RuntimeAsset } from '../src/shared/types.ts'
 
 test('defaultParams 覆盖全部 schema key + extraArgs', () => {
@@ -129,6 +130,54 @@ test('pickVariant: arm64 架构过滤', () => {
   ]
   // Apple 非 AMD/Intel/NVIDIA → 落到 cpu（arm64 池里没有 vulkan 偏好路径）
   assert.ok(['cpu', 'vulkan'].includes(pickVariant(probe, assets)))
+})
+
+test('assetRe: Linux 用 ubuntu 段解析，无变体段 = cpu（含全部官方 nightly 命名）', () => {
+  const cases: Array<[string, string, string]> = [
+    // [文件名, 期望 variant, 期望 arch]
+    ['llama-b10951-bin-ubuntu-x64.tar.gz', 'cpu', 'x64'],
+    ['llama-b10951-bin-ubuntu-arm64.tar.gz', 'cpu', 'arm64'],
+    ['llama-b10951-bin-ubuntu-vulkan-x64.tar.gz', 'vulkan', 'x64'],
+    ['llama-b10951-bin-ubuntu-vulkan-arm64.tar.gz', 'vulkan', 'arm64'],
+    ['llama-b10951-bin-ubuntu-rocm-10.0-x64.tar.gz', 'rocm-10.0', 'x64'],
+    ['llama-b10951-bin-ubuntu-openvino-2026.3.1-x64.tar.gz', 'openvino-2026.3.1', 'x64'],
+    ['llama-b10951-bin-ubuntu-sycl-fp32-x64.tar.gz', 'sycl-fp32', 'x64'],
+    ['llama-b10951-bin-ubuntu-s390x.tar.gz', 'cpu', 's390x']
+  ]
+  const re = assetRe('linux')
+  for (const [name, variant, arch] of cases) {
+    const m = name.match(re)
+    assert.ok(m, `linux 正则未匹配 ${name}`)
+    assert.equal(m![2] ?? 'cpu', variant) // 组 2=变体段（无则 undefined→cpu）
+    assert.equal(m![3], arch)
+  }
+  // 不属于 linux 的 asset 不得误匹配
+  assert.equal('llama-b10951-bin-win-cpu-x64.zip'.match(re), null)
+  assert.equal('llama-b10951-ui.tar.gz'.match(re), null)
+})
+
+test('assetRe: win / macos 命名解析不变', () => {
+  const win = assetRe('win')
+  assert.equal('llama-b10951-bin-win-cuda-12.4-x64.zip'.match(win)?.[2], 'cuda-12.4')
+  assert.equal('llama-b10951-bin-win-cpu-x64.zip'.match(win)?.[2], 'cpu')
+  assert.equal('llama-b10951-bin-win-opencl-adreno-arm64.zip'.match(win)?.[2], 'opencl-adreno')
+  const mac = assetRe('macos')
+  assert.equal('llama-b10951-bin-macos-arm64.tar.gz'.match(mac)?.[2], undefined) // 无变体段
+  assert.equal('llama-b10951-bin-macos-arm64.tar.gz'.match(mac)?.[3], 'arm64')
+  assert.equal('llama-b10951-bin-macos-x64.tar.gz'.match(mac)?.[3], 'x64')
+})
+
+test('CUDART_RE: 真实 cudart 伴生包命名（文件名不带 build 号）', () => {
+  const g1 = 'cudart-llama-bin-win-cuda-12.4-x64.zip'.match(CUDART_RE)
+  assert.ok(g1)
+  assert.equal(g1![1], '12.4')
+  assert.equal(g1![2], 'x64')
+  const g2 = 'cudart-llama-bin-win-cuda-13.4-arm64.zip'.match(CUDART_RE)
+  assert.ok(g2)
+  assert.equal(g2![1], '13.4')
+  assert.equal(g2![2], 'arm64')
+  // 主构建包 / 非 cuda 不误匹配
+  assert.equal('llama-b10951-bin-win-cuda-12.4-x64.zip'.match(CUDART_RE), null)
 })
 
 function mkAsset(variant: string, arch = 'x64'): RuntimeAsset {
