@@ -13,7 +13,9 @@ npm run dev        # electron-vite dev（开发）
 npm test           # node --test tests/*.test.ts（纯函数单测）
 npx tsc --noEmit   # 类型检查
 npm run build      # electron-vite build
-npm run build:win  # win 打包（nsis，x64 + arm64）
+npm run build:win  # win 打包（nsis，x64 + arm64 全量）
+npm run build:win:x64  # 仅 win x64
+npm run build:win:arm64  # 仅 win arm64
 npm run build:mac  # mac 打包（dmg，x64 + arm64）
 npm run build:linux  # linux 打包（AppImage + deb，x64 + arm64）
 ```

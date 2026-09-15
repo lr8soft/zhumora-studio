@@ -269,7 +269,7 @@ export default {
     binary: 'llama-server 二进制',
     binarySub: '留空 = 使用“运行时”页下载的构建',
     binaryPh: '（空 = 自动使用已下载 runtime）',
-    binaryHint: '离线环境或想用自定义 CUDA/Vulkan 构建时，在此指定 llama-server.exe 的完整路径，优先级高于自动下载的 runtime。',
+    binaryHint: '离线环境或想用自定义 CUDA/Vulkan 构建时，在此指定 {{bin}} 的完整路径，优先级高于自动下载的 runtime。',
     language: '界面语言',
     languageHint: '界面语言。选“自动”时跟随系统语言。',
     autoDetect: '自动（跟随系统）',

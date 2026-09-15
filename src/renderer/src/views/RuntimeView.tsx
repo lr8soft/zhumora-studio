@@ -49,8 +49,12 @@ export default function RuntimeView({ onNavigate }: { onNavigate: (v: ViewId) =>
   const pickBinary = async () => {
     const p = await window.zhumora.system.pickBinary()
     if (!p) return
-    const next = await window.zhumora.settings.save({ llamaBinary: p })
-    setSettings(next)
+    try {
+      const next = await window.zhumora.settings.save({ llamaBinary: p })
+      setSettings(next)
+    } catch (e) {
+      window.alert((e as Error).message)
+    }
   }
 
   const progress = runtime.progress

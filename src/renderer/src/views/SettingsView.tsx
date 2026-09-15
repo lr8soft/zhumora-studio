@@ -4,12 +4,18 @@ import { useTranslation } from 'react-i18next'
 import { SUPPORTED_LANGUAGES, applyLanguage, type AppLanguage } from '../i18n'
 import type { AppLang, Settings } from '@shared/types'
 
+/** 二进制名按平台：Windows 带 .exe，Linux/macOS 无后缀（renderer 无 process，靠 UA 判断） */
+function binName(): string {
+  return /Windows/i.test(navigator.userAgent) ? 'llama-server.exe' : 'llama-server'
+}
+
 export default function SettingsView() {
   const { t } = useTranslation()
   const settings = useAppStore((s) => s.settings)
   const setSettings = useAppStore((s) => s.setSettings)
   const [draft, setDraft] = useState<Partial<Settings>>({})
   const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   useEffect(() => {
     if (settings && Object.keys(draft).length === 0) setDraft({})
@@ -19,11 +25,16 @@ export default function SettingsView() {
   const val = <K extends keyof Settings>(k: K): Settings[K] => draft[k] ?? settings?.[k] ?? ({} as Settings)[k]
 
   const save = async () => {
-    const next = await window.zhumora.settings.save(draft)
-    setSettings(next)
-    setDraft({})
-    setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
+    setSaveError(null)
+    try {
+      const next = await window.zhumora.settings.save(draft)
+      setSettings(next)
+      setDraft({})
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
+    } catch (e) {
+      setSaveError((e as Error).message)
+    }
   }
 
   const pickDir = async () => {
@@ -123,7 +134,9 @@ export default function SettingsView() {
             />
             <button className="btn" onClick={() => void pickBinary()}>{t('settings.browse')}</button>
           </div>
-          <div className="hint" style={{ lineHeight: 1.5 }}>{t('settings.binaryHint')}</div>
+          <div className="hint" style={{ lineHeight: 1.5 }}>
+            {t('settings.binaryHint', { bin: binName() })}
+          </div>
         </div>
       </div>
 
@@ -166,6 +179,12 @@ export default function SettingsView() {
           </p>
         </div>
       </div>
+
+      {saveError && (
+        <div className="toast error" style={{ whiteSpace: 'normal', wordBreak: 'break-all' }}>
+          {saveError}
+        </div>
+      )}
     </div>
   )
 }

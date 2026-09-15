@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { existsSync, unlinkSync } from 'fs'
+import { existsSync, unlinkSync, accessSync, constants } from 'fs'
 import { Ipc, IpcEvent } from '@shared/ipc'
 import { defaultParams } from '@shared/buildArgs'
 import { LAUNCH_PARAMS, EXTRA_ARGS_KEY } from '@shared/launchParams'
@@ -224,8 +224,23 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   // ---------- settings ----------
   ipcMain.handle(Ipc.settingsGet, async () => settings.get())
   ipcMain.handle(Ipc.settingsSave, async (_e, patch: Partial<Settings>) => {
-    const next = settings.save(patch)
-    return next
+    // 手输的 llama-server 路径在保存时校验（选文件对话框已校验，这里是手输兜底）：
+    // 不存在 / Linux·macOS 无执行位 → 直接拒绝，避免启动 server 时才报错
+    const custom = patch.llamaBinary
+    if (custom !== undefined) {
+      const p = custom.trim()
+      if (p) {
+        if (!existsSync(p)) throw new Error(`llama-server 路径不存在：${p}`)
+        if (process.platform !== 'win32') {
+          try {
+            accessSync(p, constants.X_OK)
+          } catch {
+            throw new Error(`llama-server 没有可执行权限，可先执行 chmod +x：${p}`)
+          }
+        }
+      }
+    }
+    return settings.save(patch)
   })
 
   // ---------- chat:save-message（renderer 校准用，demo 预留） ----------
@@ -306,12 +321,31 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
     const { canceled, filePaths } = await dialog.showOpenDialog(win, {
       title: '选择 llama-server 可执行文件',
       properties: ['openFile'],
+      // 二进制名按平台：Windows 带 .exe；Linux/macOS 无扩展名，只能给"所有文件"
       filters:
         process.platform === 'win32'
-          ? [{ name: 'Executable', extensions: ['exe'] }, { name: 'All', extensions: ['*'] }]
-          : [{ name: 'All', extensions: ['*'] }]
+          ? [{ name: 'llama-server (.exe)', extensions: ['exe'] }, { name: '所有文件', extensions: ['*'] }]
+          : [{ name: '所有文件', extensions: ['*'] }]
     })
-    return canceled || filePaths.length === 0 ? null : filePaths[0]
+    if (canceled || filePaths.length === 0) return null
+    const p = filePaths[0]
+    // Linux/macOS 的二进制没有扩展名，filter 拦不住"选了个普通文件"：
+    // 在这里用可执行位校验，避免坏路径存进设置、到启动 server 才报错
+    if (process.platform !== 'win32') {
+      try {
+        accessSync(p, constants.X_OK)
+      } catch {
+        await dialog.showMessageBox(win, {
+          type: 'warning',
+          title: '文件不可执行',
+          message: '所选文件没有可执行权限，无法作为 llama-server 使用。',
+          detail: `已取消选择：${p}\n可先执行 chmod +x 后重试。`,
+          buttons: ['知道了']
+        })
+        return null
+      }
+    }
+    return p
   })
 
   ipcMain.handle(Ipc.systemOpenPath, async (_e, p: string) => {

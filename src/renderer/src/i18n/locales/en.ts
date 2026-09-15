@@ -270,7 +270,7 @@ export default {
     binary: 'llama-server binary',
     binarySub: 'Empty = use the build from the “Runtime” page',
     binaryPh: '(empty = auto-use downloaded runtime)',
-    binaryHint: 'For offline setups or custom CUDA/Vulkan builds, point to llama-server.exe. Takes priority over the auto-downloaded runtime.',
+    binaryHint: 'For offline setups or custom CUDA/Vulkan builds, point to {{bin}}. Takes priority over the auto-downloaded runtime.',
     language: 'Language',
     languageHint: 'Interface language. Auto-detects system language when set to “Auto”.',
     autoDetect: 'Auto (System)',

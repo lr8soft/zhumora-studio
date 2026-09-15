@@ -250,7 +250,7 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 ## 5. 打包与分发
 
 - 应用包**不捆绑** llama.cpp（运行时下载，见 §3.4），包体小；`yauzl` 入包（流式解压），`better-sqlite3` asarUnpack。
-- 三平台打包：`build:win`（nsis，x64/arm64）、`build:mac`（dmg，x64/arm64）、`build:linux`（AppImage + deb，x64/arm64），产物输出 `release/`。
+- 三平台打包：`build:win`（nsis，x64 + arm64 全量；可拆 `build:win:x64` / `build:win:arm64`）、`build:mac`（dmg，x64/arm64）、`build:linux`（AppImage + deb，x64/arm64），产物输出 `release/`。
 - 首次启动自检：runtime manifest 缺失 → 进入下载流程；二进制在但 `--version` 失败 → 报错并给"手动指定路径"。
 
 ## 6. 里程碑
@@ -324,7 +324,7 @@ preload 只暴露上表的类型化方法 + `on(channel, cb) → unsubscribe`；
 
 **E. 打包与发布**
 
-- electron-builder 三平台目标已配置（`package.json` build 段 + `build:win` / `build:mac` / `build:linux` 脚本）：win nsis、mac dmg（x64+arm64）、linux AppImage + deb（x64+arm64）。`better-sqlite3` 是原生模块，三平台各自重建（electron-builder 默认行为，CI 按平台跑）。
+- electron-builder 三平台目标已配置（`package.json` build 段 + `build:win` / `build:win:x64` / `build:win:arm64` / `build:mac` / `build:linux` 脚本）：win nsis、mac dmg（x64+arm64）、linux AppImage + deb（x64+arm64）。`better-sqlite3` 是原生模块，三平台各自重建（electron-builder 默认行为，CI 按平台跑）。
 - Linux 无代码签名；macOS 需 notarization（发布阶段处理）。
 
 **F. 验证要求**

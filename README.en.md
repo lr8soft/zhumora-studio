@@ -66,7 +66,9 @@ npm run build
 ### Package
 
 ```bash
-npm run build:win     # Windows (nsis, x64 + arm64)
+npm run build:win         # Windows (nsis, x64 + arm64)
+npm run build:win:x64     # Windows x64 (x86-64) only
+npm run build:win:arm64   # Windows arm64 only
 npm run build:mac     # macOS (dmg, x64 + arm64)
 npm run build:linux   # Linux (AppImage + deb, x64 + arm64)
 ```

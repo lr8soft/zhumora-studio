@@ -269,7 +269,7 @@ export default {
     binary: 'Binario de llama-server',
     binarySub: 'Vacío = usar la build de la página “Runtime”',
     binaryPh: '(vacío = usar runtime descargado)',
-    binaryHint: 'Para entornos offline o builds CUDA/Vulkan propias, indica la ruta completa de llama-server.exe. Tiene prioridad sobre el runtime descargado.',
+    binaryHint: 'Para entornos offline o builds CUDA/Vulkan propias, indica la ruta completa de {{bin}}. Tiene prioridad sobre el runtime descargado.',
     language: 'Idioma',
     languageHint: 'Idioma de la interfaz. Con “Auto” sigue el idioma del sistema.',
     autoDetect: 'Auto (sistema)',

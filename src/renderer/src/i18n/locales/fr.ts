@@ -269,7 +269,7 @@ export default {
     binary: 'Binaire llama-server',
     binarySub: 'Vide = utiliser le build de la page « Runtime »',
     binaryPh: '(vide = utiliser le runtime téléchargé)',
-    binaryHint: 'Pour un environnement hors ligne ou un build CUDA/Vulkan sur mesure, indiquez le chemin complet de llama-server.exe. Prioritaire sur le runtime téléchargé.',
+    binaryHint: 'Pour un environnement hors ligne ou un build CUDA/Vulkan sur mesure, indiquez le chemin complet de {{bin}}. Prioritaire sur le runtime téléchargé.',
     language: 'Langue',
     languageHint: 'Langue de l’interface. Avec « Auto », suit la langue du système.',
     autoDetect: 'Auto (système)',

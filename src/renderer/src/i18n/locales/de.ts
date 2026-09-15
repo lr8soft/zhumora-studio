@@ -269,7 +269,7 @@ export default {
     binary: 'llama-server-Binärdatei',
     binarySub: 'Leer = Build von der Seite „Runtime“ verwenden',
     binaryPh: '(leer = geladene Runtime automatisch verwenden)',
-    binaryHint: 'Für Offline-Umgebungen oder eigene CUDA/Vulkan-Builds hier den vollen Pfad zu llama-server.exe angeben. Hat Vorrang vor der geladenen Runtime.',
+    binaryHint: 'Für Offline-Umgebungen oder eigene CUDA/Vulkan-Builds hier den vollen Pfad zu {{bin}} angeben. Hat Vorrang vor der geladenen Runtime.',
     language: 'Sprache',
     languageHint: 'Sprache der Oberfläche. „Auto“ folgt der Systemsprache.',
     autoDetect: 'Auto (System)',

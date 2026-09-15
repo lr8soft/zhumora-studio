@@ -269,7 +269,7 @@ export default {
     binary: 'llama-server バイナリ',
     binarySub: '空欄 =「ランタイム」ページのビルドを使用',
     binaryPh: '（空欄 = ダウンロード済みのランタイムを自動使用）',
-    binaryHint: 'オフライン環境やカスタム CUDA/Vulkan ビルドを使う場合、llama-server.exe の完全なパスを指定します。自動ダウンロードされたランタイムより優先されます。',
+    binaryHint: 'オフライン環境やカスタム CUDA/Vulkan ビルドを使う場合、{{bin}} の完全なパスを指定します。自動ダウンロードされたランタイムより優先されます。',
     language: '言語',
     languageHint: 'インターフェースの言語。「自動」の場合、システム言語に追従します。',
     autoDetect: '自動（システム）',

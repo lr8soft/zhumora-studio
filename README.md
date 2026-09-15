@@ -66,7 +66,9 @@ npm run build
 ### 打包
 
 ```bash
-npm run build:win     # Windows（nsis，x64 + arm64）
+npm run build:win         # Windows（nsis，x64 + arm64 全量）
+npm run build:win:x64     # Windows x64（即 x86-64）
+npm run build:win:arm64   # Windows arm64
 npm run build:mac     # macOS（dmg，x64 + arm64）
 npm run build:linux   # Linux（AppImage + deb，x64 + arm64）
 ```
