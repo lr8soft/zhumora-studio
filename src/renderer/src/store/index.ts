@@ -27,9 +27,9 @@ interface ServerSlice {
 interface ModelsSlice {
   models: ModelInfo[]
   setModels: (m: ModelInfo[]) => void
-  downloads: Record<string, ModelDownload & { status: 'downloading' | 'error' }>
+  downloads: Record<string, ModelDownloadState>
   setDownload: (p: ModelDownloadProgress) => void
-  failDownload: (id: string, message: string) => void
+  failDownload: (id: string, message: string, cancelled?: boolean) => void
   clearDownload: (id: string) => void
 }
 
@@ -40,6 +40,12 @@ interface ModelDownload {
   done: number
   total: number
   speed: number
+}
+
+interface ModelDownloadState extends ModelDownload {
+  status: 'downloading' | 'error' | 'cancelled'
+  message?: string
+  cancelled?: boolean
 }
 
 // ---------- chat ----------
@@ -98,13 +104,14 @@ export const useAppStore = create<AppStore>((set, get) => ({
   downloads: {},
   setDownload: (p) =>
     set((s) => ({ downloads: { ...s.downloads, [p.id]: { ...p, status: 'downloading' } } })),
-  failDownload: (id, message) =>
+  failDownload: (id, message, cancelled) =>
     set((s) => {
       const cur = s.downloads[id]
       const prev: ModelDownload = cur
         ? { id: cur.id, repoId: cur.repoId, file: cur.file, done: cur.done, total: cur.total, speed: 0 }
         : { id, repoId: '', file: id, done: 0, total: 0, speed: 0 }
-      return { downloads: { ...s.downloads, [id]: { ...prev, status: 'error', message } } }
+      const status: ModelDownloadState['status'] = cancelled ? 'cancelled' : 'error'
+      return { downloads: { ...s.downloads, [id]: { ...prev, status, message, cancelled } } }
     }),
   clearDownload: (id) =>
     set((s) => {
@@ -223,7 +230,7 @@ export function subscribeMainEvents(): () => void {
       useAppStore.getState().clearDownload(d.id)
       await useAppStore.getState().loadModels()
     }),
-    window.zhumora.on(IpcEvent.modelError, (e) => useAppStore.getState().failDownload(e.id, e.message))
+    window.zhumora.on(IpcEvent.modelError, (e) => useAppStore.getState().failDownload(e.id, e.message, e.cancelled))
   ]
   return () => offs.forEach((off) => off())
 }

@@ -75,7 +75,7 @@ export class ModelDownloader {
       this.tasks.delete(id)
       const msg = (err as Error).message
       if (msg === 'ABORTED') {
-        this.errorCb?.({ id, message: '已取消（保留进度，可续传）' })
+        this.errorCb?.({ id, message: '已取消（保留进度，可续传）', cancelled: true })
       } else {
         this.errorCb?.({ id, message: msg })
       }

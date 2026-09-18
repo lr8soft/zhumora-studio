@@ -2,6 +2,7 @@ import { useAppStore } from '../store'
 import { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ViewId } from '../components/Sidebar'
+import { compareVersions } from '@shared/version'
 
 function fmtSize(bytes: number): string {
   if (bytes >= 1024 * 1024 * 1024) return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB'
@@ -228,39 +229,69 @@ export default function RuntimeView({ onNavigate }: { onNavigate: (v: ViewId) =>
           </div>
           <div className="card-body">
             <div className="variant-grid">
-              {runtime.assets
-                .filter((a) => a.arch === (runtime.detected?.arch ?? 'x64'))
-                .sort((a, b) => {
-                  // 推荐置顶
-                  if (a.variant === runtime.recommended) return -1
-                  if (b.variant === runtime.recommended) return 1
-                  return a.variant.localeCompare(b.variant)
-                })
-                .map((a) => {
-                const selected =
-                  runtime.state === 'ready' && runtime.variant === a.variant
-                return (
-                  <div
-                    key={a.name}
-                    className={`variant-card ${selected ? 'selected' : ''}`}
-                    onClick={() => {
-                      if (!selected) void download(a.variant)
-                    }}
-                  >
-                    <div>
-                      <div className="name">
-                        {a.variant}
-                        {a.variant === runtime.recommended && <span className="rec-tag">{t('runtime.rec')}</span>}
-                        {selected && <span className="rec-tag" style={{ marginLeft: 8 }}>{t('runtime.installed')}</span>}
+              {(() => {
+                const localArch = runtime.detected?.arch ?? 'x64'
+                const installed = runtime.installed ?? []
+                return runtime.assets
+                  .filter((a) => a.arch === localArch)
+                  .sort((a, b) => {
+                    // 推荐置顶
+                    if (a.variant === runtime.recommended) return -1
+                    if (b.variant === runtime.recommended) return 1
+                    return a.variant.localeCompare(b.variant)
+                  })
+                  .map((a) => {
+                    const isActive = runtime.state === 'ready' && runtime.variant === a.variant
+                    // 该变体已装的最高 build 号（多版本共存时取最高）
+                    const installedVersions = installed
+                      .filter((x) => x.variant === a.variant)
+                      .map((x) => x.version)
+                    const installedVersion =
+                      installedVersions.length > 0
+                        ? installedVersions.reduce((max, v) => (compareVersions(v, max) > 0 ? v : max))
+                        : undefined
+                    // 有更新的 nightly（且不是当前激活的）→ 可升级
+                    const upgradable =
+                      !!installedVersion && !isActive && compareVersions(a.version, installedVersion) > 0
+                    return (
+                      <div
+                        key={a.name}
+                        className={`variant-card ${isActive ? 'selected' : ''}`}
+                        title={upgradable ? t('runtime.updateTo', { v: a.version }) : ''}
+                        onClick={() => {
+                          if (!isActive) void download(a.variant)
+                        }}
+                      >
+                        <div>
+                          <div className="name">
+                            {a.variant}
+                            {a.variant === runtime.recommended && <span className="rec-tag">{t('runtime.rec')}</span>}
+                            {isActive && (
+                              <span className="rec-tag" style={{ marginLeft: 8 }}>{t('runtime.installed')}</span>
+                            )}
+                            {upgradable && (
+                              <span className="rec-tag rec-tag-warn" style={{ marginLeft: 8 }}>
+                                {t('runtime.update')}
+                              </span>
+                            )}
+                          </div>
+                          <div className="sub">
+                            {a.name} · {a.arch}
+                          </div>
+                        </div>
+                        <div className="size">
+                          {upgradable ? (
+                            <>
+                              {installedVersion} → <strong>{a.version}</strong> · {fmtSize(a.size)}
+                            </>
+                          ) : (
+                            fmtSize(a.size)
+                          )}
+                        </div>
                       </div>
-                      <div className="sub">
-                        {a.name} · {a.arch}
-                      </div>
-                    </div>
-                    <div className="size">{fmtSize(a.size)}</div>
-                  </div>
-                )
-              })}
+                    )
+                  })
+              })()}
             </div>
           </div>
         </div>

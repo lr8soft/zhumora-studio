@@ -4,6 +4,7 @@ import { buildArgs, defaultParams, paramsEqual, sanitizeParams } from '../src/sh
 import { LAUNCH_PARAMS } from '../src/shared/launchParams.ts'
 import { pickVariant } from '../src/main/runtime/detect.ts'
 import { assetRe, CUDART_RE } from '../src/main/runtime/github.ts'
+import { compareVersions, buildNum } from '../src/shared/version.ts'
 import type { GpuProbeResult, RuntimeAsset } from '../src/shared/types.ts'
 
 test('defaultParams 覆盖全部 schema key + extraArgs', () => {
@@ -178,6 +179,17 @@ test('CUDART_RE: 真实 cudart 伴生包命名（文件名不带 build 号）', 
   assert.equal(g2![2], 'arm64')
   // 主构建包 / 非 cuda 不误匹配
   assert.equal('llama-b10951-bin-win-cuda-12.4-x64.zip'.match(CUDART_RE), null)
+})
+
+test('compareVersions: build 号比较（判断 runtime 是否有更新）', () => {
+  assert.ok(compareVersions('b10951', 'b10936') > 0) // 更新
+  assert.ok(compareVersions('b10936', 'b10951') < 0) // 更旧
+  assert.equal(compareVersions('b10951', 'b10951'), 0) // 相同
+  assert.equal(buildNum('b10951'), 10951)
+  assert.equal(buildNum('v2.1.0'), 2) // 首个数字
+  assert.equal(buildNum(''), 0)
+  assert.equal(buildNum(null), 0)
+  assert.equal(buildNum(undefined), 0)
 })
 
 function mkAsset(variant: string, arch = 'x64'): RuntimeAsset {

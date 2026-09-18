@@ -20,6 +20,8 @@ function binaryName(): string {
 interface Manifest {
   version: string
   variant: string
+  /** 安装时的本机架构（x64/arm64）；旧 manifest 无此字段，读取时用 process.arch 兜底 */
+  arch?: string
   sha256?: string
   binary: string
   installedAt: number
@@ -48,7 +50,7 @@ export class RuntimeManager {
   }
 
   private emit(patch: Partial<RuntimeStatus>): void {
-    this.status = { ...this.status, ...patch }
+    this.status = { ...this.status, ...patch, installed: this.listInstalled() }
     this.listener?.(this.status)
   }
 
@@ -81,7 +83,8 @@ export class RuntimeManager {
           state: 'ready',
           version: latest.manifest.version,
           variant: latest.manifest.variant,
-          binaryPath: bin
+          binaryPath: bin,
+          installed: this.listInstalled()
         }
         this.listener?.(this.status)
         return this.status
@@ -117,6 +120,11 @@ export class RuntimeManager {
   async download(variant?: string): Promise<void> {
     if (this.busy) throw new Error('已有下载任务进行中')
     const arch = this.status.detected?.arch ?? (process.arch === 'arm64' ? 'arm64' : 'x64')
+    // 若 asset 列表尚未就绪（首启未探测 / 未手动刷新 / 应用重启后），主动拉一次，
+    // 否则会出现"点了下载但状态是'没有匹配本机架构的可下载构建，请先刷新'"的卡死路径
+    if (!this.status.assets || this.status.assets.length === 0) {
+      await this.refreshAssets()
+    }
     const pool = (this.status.assets ?? []).filter((a) => a.arch === arch)
     const wanted = variant ?? this.status.recommended
     const asset = pool.find((a) => a.variant === wanted) ?? pool[0]
@@ -179,6 +187,7 @@ export class RuntimeManager {
       const manifest: Manifest = {
         version: asset.version,
         variant: asset.variant,
+        arch,
         sha256: asset.sha256,
         binary: relativeSafe(dir, binary),
         installedAt: Date.now()
@@ -191,7 +200,8 @@ export class RuntimeManager {
         binaryPath: binary,
         detected: this.status.detected,
         recommended: this.status.recommended,
-        assets: this.status.assets
+        assets: this.status.assets,
+        installed: this.listInstalled()
       }
       this.listener?.(this.status)
     } catch (err) {
@@ -222,6 +232,29 @@ export class RuntimeManager {
       this.emit({ error: `刷新失败: ${(e as Error).message}` })
       throw e
     }
+  }
+
+  /**
+   * 已安装的 runtime（从磁盘 manifest 读取，多版本共存时全部返回）。
+   * 供 UI 判断"某变体已装 → 是否可升级到最新"。arch 由 UI 用本机 arch 过滤。
+   */
+  listInstalled(): { version: string; variant: string }[] {
+    const out: { version: string; variant: string }[] = []
+    if (!existsSync(this.baseDir)) return out
+    for (const entry of readdirSync(this.baseDir)) {
+      const dir = join(this.baseDir, entry)
+      const manifestFile = join(dir, 'manifest.json')
+      if (!existsSync(manifestFile)) continue
+      try {
+        const m = JSON.parse(readFileSync(manifestFile, 'utf8')) as Manifest
+        if (m.version && m.variant) {
+          out.push({ version: m.version, variant: m.variant })
+        }
+      } catch {
+        // 损坏 manifest 跳过
+      }
+    }
+    return out
   }
 }
 

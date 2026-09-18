@@ -128,6 +128,12 @@ export interface RuntimeProgress {
   phase: 'downloading' | 'extracting'
 }
 
+/** 本机已安装的 llama.cpp 运行时（多版本共存，供 UI 判断能否升级） */
+export interface InstalledRuntime {
+  version: string
+  variant: string
+}
+
 export interface RuntimeStatus {
   state: RuntimeStateName
   version?: string
@@ -138,6 +144,8 @@ export interface RuntimeStatus {
   assets?: RuntimeAsset[]
   progress?: RuntimeProgress
   error?: string
+  /** 本机全部已安装 runtime（磁盘 manifest 为准）；含当前激活的 version/variant */
+  installed?: InstalledRuntime[]
 }
 
 // ---------- models ----------
@@ -219,6 +227,8 @@ export interface ModelDownloadDone {
 export interface ModelDownloadError {
   id: string
   message: string
+  /** 用户主动取消（.part 已保留，可断点续传）；false/缺省 = 真实错误 */
+  cancelled?: boolean
 }
 
 // ---------- chat ----------

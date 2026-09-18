@@ -147,14 +147,24 @@ function DownloadRow({
   path: string
   size: number
   downloaded: boolean
-  dl?: { status: 'downloading' | 'error'; done: number; total: number; message?: string }
+  dl?: {
+    status: 'downloading' | 'error' | 'cancelled'
+    done: number
+    total: number
+    message?: string
+    cancelled?: boolean
+  }
   onDownload: () => void
   t: TFunc
 }) {
   const base = path.split('/').pop() ?? path
   const quant = quantFromPath(path)
   const isMm = base.toLowerCase().startsWith('mmproj')
+  const dlId = `${repoId}::${path}`
   const pct = dl && dl.total > 0 ? (dl.done / dl.total) * 100 : 0
+  const isDownloading = dl?.status === 'downloading'
+  const isCancelled = dl?.status === 'cancelled'
+  const isError = dl?.status === 'error'
   return (
     <div className="dl-row">
       <div className="dl-main">
@@ -163,17 +173,29 @@ function DownloadRow({
         {isMm && <span className="badge badge-stopped">mmproj</span>}
       </div>
       <span className="dl-size">{fmtSize(size)}</span>
-      {dl ? (
-        dl.status === 'error' ? (
-          <span className="dl-err" title={dl.message}>
-            {t('models.fail', { msg: (dl.message ?? '').slice(0, 14) })}
-          </span>
-        ) : (
-          <button className="btn btn-sm" onClick={() => void window.zhumora.models.cancelDownload(`${repoId}::${path}`)}>
-            {pct > 0 ? pct.toFixed(0) + '% ' : ''}
-            {t('models.cancel')}
+      {isDownloading ? (
+        <button className="btn btn-sm" onClick={() => void window.zhumora.models.cancelDownload(dlId)}>
+          {pct > 0 ? pct.toFixed(0) + '% ' : ''}
+          {t('models.cancel')}
+        </button>
+      ) : isCancelled ? (
+        <>
+          <button className="btn btn-sm btn-primary" onClick={onDownload}>
+            {t('models.resume')}
           </button>
-        )
+          <span className="dl-resumed" title={t('models.cancelled')}>
+            {pct > 0 ? t('models.pausedAt', { pct: pct.toFixed(0) }) : t('models.cancelled')}
+          </span>
+        </>
+      ) : isError ? (
+        <>
+          <button className="btn btn-sm" onClick={onDownload}>
+            {t('models.retry')}
+          </button>
+          <span className="dl-err" title={dl?.message}>
+            {t('models.fail', { msg: (dl?.message ?? '').slice(0, 14) })}
+          </span>
+        </>
       ) : downloaded ? (
         <span className="dl-done">{t('models.downloaded')}</span>
       ) : (
@@ -181,7 +203,7 @@ function DownloadRow({
           {t('models.download')}
         </button>
       )}
-      {dl && dl.status === 'downloading' && (
+      {(isDownloading || isCancelled) && dl.total > 0 && (
         <div className="progress" style={{ width: '100%' }}>
           <div style={{ width: `${pct}%` }} />
         </div>

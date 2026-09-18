@@ -255,6 +255,7 @@ details.advanced[open] summary { margin-bottom: 12px; }
 .variant-card .sub { color: var(--app-color-text-mute); font-size: 0.733rem; }
 .variant-card .size { margin-left: auto; color: var(--app-color-text-mute); font-size: 0.767rem; white-space: nowrap; }
 .rec-tag { display: inline-flex; padding: 1px 7px; border-radius: 10px; background: var(--app-color-primary); color: #fff; font-size: 0.65rem; font-weight: 700; margin-left: 8px; vertical-align: 1px; }
+.rec-tag-warn { background: color-mix(in srgb, var(--app-color-warn) 18%, transparent); color: var(--app-color-warn); }
 
 /* ---------- 聊天 ---------- */
 .chat-layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); overflow: hidden; }
@@ -376,10 +377,11 @@ details.advanced[open] summary { margin-bottom: 12px; }
 .dl-main { flex: 1 1 180px; display: flex; align-items: center; gap: 8px; min-width: 0; overflow: hidden; }
 .dl-main .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dl-size { color: var(--app-color-text-mute); font-size: 0.767rem; white-space: nowrap; }
-.dl-row > .btn, .dl-row > .dl-done, .dl-row > .dl-err { flex: 0 0 auto; }
+.dl-row > .btn, .dl-row > .dl-done, .dl-row > .dl-err, .dl-row > .dl-resumed { flex: 0 0 auto; }
 .dl-row > .progress { flex-basis: 100%; height: 5px; }
 .dl-done { color: var(--app-color-success); font-size: 0.767rem; font-weight: 650; white-space: nowrap; }
 .dl-err { color: var(--app-color-danger); font-size: 0.733rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.dl-resumed { color: var(--app-color-text-mute); font-size: 0.733rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 190px; }
 
 /* README */
 .readme { font-size: 0.833rem; line-height: 1.6; color: var(--app-color-text-soft); display: grid; gap: 8px; }
