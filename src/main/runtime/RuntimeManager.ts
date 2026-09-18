@@ -50,8 +50,20 @@ export class RuntimeManager {
   }
 
   private emit(patch: Partial<RuntimeStatus>): void {
-    this.status = { ...this.status, ...patch, installed: this.listInstalled() }
+    const next: RuntimeStatus = { ...this.status, ...patch }
+    next.info = this.infoText(next)
+    next.installed = this.listInstalled()
+    this.status = next
     this.listener?.(this.status)
+  }
+
+  /** 非阻塞提示：有更新 build 但资产未传完时，说明当前列表版本是稍旧的 */
+  private infoText(status: RuntimeStatus): string | undefined {
+    const skipped = status.skippedNewer
+    if (skipped && skipped.length > 0 && status.assets && status.assets.length > 0) {
+      return `最新 nightly（${skipped.join('、')}）的构建包还在上传中，当前展示 ${status.assets[0].version}（稍后刷新可获得最新版）`
+    }
+    return undefined
   }
 
   private installDir(version: string, variant: string): string {
@@ -97,8 +109,11 @@ export class RuntimeManager {
     this.emit({ state: 'checking', progress: undefined })
     const probe = await probeGpu()
     let assets: RuntimeAsset[]
+    let skippedNewer: string[] = []
     try {
-      ;({ assets } = await fetchPlatformAssets())
+      const r = await fetchPlatformAssets()
+      assets = r.assets
+      skippedNewer = r.skippedNewer ?? []
     } catch (e) {
       const offline =
         probe.platform === 'linux' && probe.adapters.some((a) => /nvidia/i.test(a))
@@ -112,7 +127,7 @@ export class RuntimeManager {
       return this.status
     }
     const recommended = pickVariant(probe, assets)
-    this.emit({ state: 'detected', detected: probe, recommended, assets })
+    this.emit({ state: 'detected', detected: probe, recommended, assets, skippedNewer, error: undefined })
     return this.status
   }
 
@@ -224,11 +239,18 @@ export class RuntimeManager {
   /** 刷新 asset 列表（不下载） */
   async refreshAssets(): Promise<RuntimeAsset[]> {
     try {
-      const { assets } = await fetchPlatformAssets()
+      const r = await fetchPlatformAssets()
       const probe = this.status.detected ?? (await probeGpu())
-      this.emit({ assets, detected: probe, recommended: pickVariant(probe, assets) })
-      return assets
+      this.emit({
+        assets: r.assets,
+        detected: probe,
+        recommended: pickVariant(probe, r.assets),
+        skippedNewer: r.skippedNewer ?? [],
+        error: undefined
+      })
+      return r.assets
     } catch (e) {
+      // 失败：写入 error 供 UI 展示（state 保持现状，不破坏已就绪的状态机）
       this.emit({ error: `刷新失败: ${(e as Error).message}` })
       throw e
     }

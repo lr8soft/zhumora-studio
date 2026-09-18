@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { buildArgs, defaultParams, paramsEqual, sanitizeParams } from '../src/shared/buildArgs.ts'
 import { LAUNCH_PARAMS } from '../src/shared/launchParams.ts'
 import { pickVariant } from '../src/main/runtime/detect.ts'
-import { assetRe, CUDART_RE } from '../src/main/runtime/github.ts'
+import { assetRe, CUDART_RE, listAssets } from '../src/main/runtime/github.ts'
 import { compareVersions, buildNum } from '../src/shared/version.ts'
 import type { GpuProbeResult, RuntimeAsset } from '../src/shared/types.ts'
 
@@ -179,6 +179,71 @@ test('CUDART_RE: 真实 cudart 伴生包命名（文件名不带 build 号）', 
   assert.equal(g2![2], 'arm64')
   // 主构建包 / 非 cuda 不误匹配
   assert.equal('llama-b10951-bin-win-cuda-12.4-x64.zip'.match(CUDART_RE), null)
+})
+
+test('listAssets: 跳过 assets 为空的 release（nightly 资产上传中），返回带资产的 + 跳过的更新 build', () => {
+  const rel = (tag: string, assetNames: string[]) => ({
+    tag_name: tag,
+    prerelease: true,
+    assets: assetNames.map((name) => ({ name, size: 10, browser_download_url: 'http://x' }))
+  })
+  // 2026-09-18 真实场景：b11028/b11027 已建 release 但 assets 为空
+  const releases = [
+    rel('b11028', []),
+    rel('b11027', []),
+    rel('b11026', ['llama-b11026-bin-win-cpu-x64.zip', 'llama-b11026-bin-win-vulkan-x64.zip', 'llama-b11026-bin-win-cuda-13.4-x64.zip', 'cudart-llama-bin-win-cuda-13.4-x64.zip']),
+    rel('b11025', ['llama-b11025-bin-win-cpu-x64.zip'])
+  ]
+  const r = listAssets(releases, 'win')
+  assert.equal(r.tagName, 'b11026')
+  assert.deepEqual(r.skipped, ['b11028', 'b11027'])
+  assert.deepEqual(r.assets.map((a) => a.variant), ['cpu', 'vulkan', 'cuda-13.4'])
+  // cuda 伴生包挂上
+  const cuda = r.assets.find((a) => a.variant === 'cuda-13.4')
+  assert.ok(cuda?.companion)
+  assert.equal(cuda?.companion?.name, 'cudart-llama-bin-win-cuda-13.4-x64.zip')
+})
+
+test('listAssets: 无空 release 时取最新，skipped 为空', () => {
+  const rel = (tag: string, assetNames: string[]) => ({
+    tag_name: tag,
+    prerelease: true,
+    assets: assetNames.map((name) => ({ name, size: 1, browser_download_url: 'http://x' }))
+  })
+  const releases = [
+    rel('b11026', ['llama-b11026-bin-win-cpu-x64.zip']),
+    rel('b11025', ['llama-b11025-bin-win-cpu-x64.zip'])
+  ]
+  const r = listAssets(releases, 'win')
+  assert.equal(r.tagName, 'b11026')
+  assert.deepEqual(r.skipped, [])
+})
+
+test('listAssets: 全部 assets 为空 → 抛"上传中"；无 b 系列 → 抛"未找到"', () => {
+  const empty = {
+    tag_name: 'b11028',
+    prerelease: true,
+    assets: []
+  }
+  assert.throws(() => listAssets([empty], 'win'), /还在上传中/)
+  assert.throws(() => listAssets([{ tag_name: 'b11028', prerelease: false, assets: [] }], 'win'), /未找到/)
+  assert.throws(() => listAssets([], 'win'), /未找到/)
+})
+
+test('listAssets: 空 release 在中间时，只收集 target 之前（更新的）被跳过项', () => {
+  const rel = (tag: string, assetNames: string[]) => ({
+    tag_name: tag,
+    prerelease: true,
+    assets: assetNames.map((name) => ({ name, size: 1, browser_download_url: 'http://x' }))
+  })
+  const releases = [
+    rel('b11028', []),
+    rel('b11027', ['llama-b11027-bin-win-cpu-x64.zip']),
+    rel('b11026', []) // target 之后的空 release 不计入 skipped
+  ]
+  const r = listAssets(releases, 'win')
+  assert.equal(r.tagName, 'b11027')
+  assert.deepEqual(r.skipped, ['b11028'])
 })
 
 test('compareVersions: build 号比较（判断 runtime 是否有更新）', () => {

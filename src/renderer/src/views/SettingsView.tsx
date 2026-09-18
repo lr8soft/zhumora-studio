@@ -166,6 +166,22 @@ export default function SettingsView() {
                 ))}
               </select>
             </div>
+            <div className="field">
+              <label>{t('settings.closeBehavior')}</label>
+              <select
+                value={String(val('closeBehavior'))}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    closeBehavior: e.target.value as Settings['closeBehavior']
+                  }))
+                }
+              >
+                <option value="tray">{t('settings.closeToTray')}</option>
+                <option value="quit">{t('settings.closeToQuit')}</option>
+              </select>
+              <div className="hint">{t('settings.closeBehaviorHint')}</div>
+            </div>
           </div>
         </div>
       </div>

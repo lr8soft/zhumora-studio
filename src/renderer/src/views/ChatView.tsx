@@ -50,11 +50,22 @@ export default function ChatView() {
 
   const send = async () => {
     const text = input.trim()
-    if (!text || !activeSessionId || isStreaming) return
+    if (!text || isStreaming) return
     setInput('')
 
+    // 没有会话时自动创建（不必先点"新对话"）
+    let sessionId = activeSessionId
+    if (!sessionId) {
+      const modelId = (active?.modelId ?? '') || (models[0]?.id ?? '')
+      const session = await window.zhumora.chat.createSession(modelId)
+      const st = useAppStore.getState()
+      st.setSessions(await window.zhumora.chat.sessions())
+      st.setActiveSession(session.id)
+      sessionId = session.id
+    }
+
     // 组装消息序列：历史 + system（若有）+ 本条 user
-    const history = messages[activeSessionId] ?? []
+    const history = messages[sessionId] ?? []
     const seq: { role: ChatRole; content: string }[] = []
     if (sysPrompt.trim()) seq.push({ role: 'system', content: sysPrompt.trim() })
     for (const m of history) {
@@ -69,11 +80,11 @@ export default function ChatView() {
       content: text,
       createdAt: Date.now()
     }
-    useAppStore.getState().setMessages(activeSessionId, [...history, userMsg])
+    useAppStore.getState().setMessages(sessionId, [...history, userMsg])
 
     try {
       await window.zhumora.chat.send({
-        sessionId: activeSessionId,
+        sessionId,
         messages: seq,
         overrides: {
           temperature: adv.temperature ? Number(adv.temperature) : undefined,
@@ -217,7 +228,7 @@ export default function ChatView() {
                   {t('chat.stopGen')}
                 </button>
               ) : (
-                <button className="btn btn-primary" onClick={() => void send()} disabled={!serverReady || !input.trim() || !activeSessionId}>
+                <button className="btn btn-primary" onClick={() => void send()} disabled={!serverReady || !input.trim()}>
                   {t('chat.send')}
                 </button>
               )}

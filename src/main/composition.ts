@@ -1,4 +1,4 @@
-import { BrowserWindow, app, shell } from 'electron'
+import { BrowserWindow, Tray, app, shell } from 'electron'
 import { join } from 'path'
 import { SettingsStore } from './settings/store'
 import { openDatabase } from './store/db'
@@ -12,15 +12,20 @@ import { ChatProxy } from './chat/ChatProxy'
 import { RuntimeManager } from './runtime/RuntimeManager'
 import { ModelDownloader } from './models/downloader'
 import { registerIpcHandlers, bootSequence, type AppContext } from './ipc/handlers'
+import { createAppTray } from './tray'
 
 export interface AppServices {
   ctx: AppContext
   createWindow: () => BrowserWindow
-  dispose: () => void
+  showWindow: () => void
+  createTray: () => boolean
+  dispose: () => Promise<void>
 }
 
-export function createAppServices(): AppServices {
+export function createAppServices(isQuitting: () => boolean): AppServices {
   let win: BrowserWindow | null = null
+  let tray: Tray | null = null
+  let disposed = false
 
   const settings = new SettingsStore(app.getPath('userData'))
   const db = openDatabase()
@@ -41,6 +46,8 @@ export function createAppServices(): AppServices {
   const ctx: AppContext = { settings, models, chat, keys, usage, requestLog, server, chatProxy, runtime, modelDownloader, send }
 
   const createWindow = (): BrowserWindow => {
+    if (win && !win.isDestroyed()) return win
+
     win = new BrowserWindow({
       width: 1280,
       height: 800,
@@ -58,6 +65,27 @@ export function createAppServices(): AppServices {
       }
     })
     win.on('ready-to-show', () => win?.show())
+    win.on('close', (event) => {
+      if (isQuitting()) return
+
+      event.preventDefault()
+      if (settings.get().closeBehavior === 'quit') {
+        app.quit()
+        return
+      }
+
+      // Linux 某些桌面没有可用托盘；此时退回普通最小化，避免窗口无入口可恢复。
+      if (!tray) {
+        win?.minimize()
+        return
+      }
+
+      win?.hide()
+      if (process.platform === 'darwin') void app.dock?.hide()
+    })
+    win.on('closed', () => {
+      win = null
+    })
     win.webContents.setWindowOpenHandler(({ url }) => {
       void shell.openExternal(url)
       return { action: 'deny' }
@@ -70,12 +98,41 @@ export function createAppServices(): AppServices {
     return win
   }
 
-  const dispose = (): void => {
+  const showWindow = (): void => {
+    const current = win && !win.isDestroyed() ? win : createWindow()
+    if (process.platform === 'darwin') void app.dock?.show()
+    if (current.isMinimized()) current.restore()
+    current.show()
+    current.focus()
+  }
+
+  const createTray = (): boolean => {
+    if (tray && !tray.isDestroyed()) return true
+    try {
+      tray = createAppTray(showWindow)
+      return true
+    } catch (error) {
+      console.error('无法创建系统托盘，将使用普通最小化：', error)
+      tray = null
+      return false
+    }
+  }
+
+  const dispose = async (): Promise<void> => {
+    if (disposed) return
+    disposed = true
     chatProxy.abort()
-    void server.stop()
-    db.close()
+    runtime.cancel()
+    modelDownloader.cancelAll()
+    try {
+      await server.stop()
+    } finally {
+      tray?.destroy()
+      tray = null
+      db.close()
+    }
   }
 
   registerIpcHandlers(ctx, () => win)
-  return { ctx, createWindow, dispose }
+  return { ctx, createWindow, showWindow, createTray, dispose }
 }

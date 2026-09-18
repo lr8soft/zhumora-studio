@@ -27,6 +27,7 @@ export class ServerManager {
   private logs: string[] = []
   private healthTimer: NodeJS.Timeout | null = null
   private stopTimer: NodeJS.Timeout | null = null
+  private stopPromise: Promise<void> | null = null
   private stateListener: StateListener | null = null
   private logListener: LogListener | null = null
   private requestLogListener: RequestLogListener | null = null
@@ -116,6 +117,10 @@ export class ServerManager {
       })
     })
     proc.on('exit', (code, signal) => {
+      if (this.stopTimer) {
+        clearTimeout(this.stopTimer)
+        this.stopTimer = null
+      }
       this.proc = null
       this.clearHealthTimer()
       this.closeProxy()
@@ -164,6 +169,7 @@ export class ServerManager {
   }
 
   async stop(): Promise<void> {
+    if (this.stopPromise) return this.stopPromise
     if (!this.proc && !this.proxy) return
     this.stopping = true
     this.clearHealthTimer()
@@ -174,18 +180,44 @@ export class ServerManager {
       return
     }
     this.setState({ state: 'stopping' })
-    try {
-      proc.kill('SIGTERM')
-    } catch {
-      // ignore
-    }
-    this.stopTimer = setTimeout(() => {
-      try {
-        proc.kill('SIGKILL')
-      } catch {
-        // ignore
+
+    this.stopPromise = new Promise<void>((resolve) => {
+      let settleTimer: NodeJS.Timeout | null = null
+      const finish = (): void => {
+        proc.off('exit', finish)
+        if (this.stopTimer) {
+          clearTimeout(this.stopTimer)
+          this.stopTimer = null
+        }
+        if (settleTimer) clearTimeout(settleTimer)
+        this.stopPromise = null
+        resolve()
       }
-    }, STOP_GRACE_MS)
+
+      proc.once('exit', finish)
+      try {
+        if (!proc.kill('SIGTERM')) {
+          queueMicrotask(finish)
+          return
+        }
+      } catch {
+        queueMicrotask(finish)
+        return
+      }
+
+      this.stopTimer = setTimeout(() => {
+        try {
+          proc.kill('SIGKILL')
+        } catch {
+          finish()
+          return
+        }
+        // 极端情况下平台不回送 exit，避免退出流程永久卡住。
+        settleTimer = setTimeout(finish, 1000)
+      }, STOP_GRACE_MS)
+    })
+
+    return this.stopPromise
   }
 
   private closeProxy(): void {

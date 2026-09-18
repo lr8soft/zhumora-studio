@@ -87,6 +87,10 @@ export class ModelDownloader {
     this.tasks.get(id)?.abort.abort()
   }
 
+  cancelAll(): void {
+    for (const task of this.tasks.values()) task.abort.abort()
+  }
+
   /** 下载完成后由 scanner 识别 kind（模型 / mmproj） */
   kindFor(file: string): 'model' | 'mmproj' {
     return isMmprojPath(file) ? 'mmproj' : 'model'

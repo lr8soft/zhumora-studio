@@ -144,6 +144,10 @@ export interface RuntimeStatus {
   assets?: RuntimeAsset[]
   progress?: RuntimeProgress
   error?: string
+  /** 非阻塞提示（如：更新 build 的资产还在上传，当前展示的是稍旧 build） */
+  info?: string
+  /** 比当前 asset 列表更新、但资产还在上传中的 build 号 */
+  skippedNewer?: string[]
   /** 本机全部已安装 runtime（磁盘 manifest 为准）；含当前激活的 version/variant */
   installed?: InstalledRuntime[]
 }
@@ -363,4 +367,6 @@ export interface Settings {
   theme: 'light' | 'dark' | 'system'
   fontSize: number
   lang: AppLang
+  /** 关闭主窗口时隐藏到托盘，或直接退出整个应用。 */
+  closeBehavior: 'tray' | 'quit'
 }

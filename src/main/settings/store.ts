@@ -4,7 +4,7 @@ import { app } from 'electron'
 import { defaultParams } from '@shared/buildArgs'
 import type { AppLang, LaunchParams, Settings } from '@shared/types'
 
-export const SETTINGS_SCHEMA_VERSION = 1
+export const SETTINGS_SCHEMA_VERSION = 2
 
 const APP_LANGS: AppLang[] = ['auto', 'en', 'zh', 'ja', 'es', 'fr', 'de']
 
@@ -37,7 +37,8 @@ export function normalizeSettings(raw: unknown): Settings {
     lastParams: migrateLoadMode({ ...defaultParams(), ...(r.lastParams as LaunchParams ?? {}) }),
     theme: r.theme === 'light' || r.theme === 'dark' ? r.theme : 'system',
     fontSize: typeof r.fontSize === 'number' && r.fontSize >= 13 && r.fontSize <= 18 ? r.fontSize : 15,
-    lang: typeof r.lang === 'string' && (APP_LANGS as string[]).includes(r.lang) ? (r.lang as AppLang) : 'auto'
+    lang: typeof r.lang === 'string' && (APP_LANGS as string[]).includes(r.lang) ? (r.lang as AppLang) : 'auto',
+    closeBehavior: r.closeBehavior === 'quit' ? 'quit' : 'tray'
   }
 }
 

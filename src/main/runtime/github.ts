@@ -39,23 +39,25 @@ function platformOf(): Platform {
   return process.platform === 'win32' ? 'win' : process.platform === 'darwin' ? 'macos' : 'linux'
 }
 
-/**
- * 取最新 nightly release 的本机平台构建。
- * 注意：/releases/latest 指向 stable（无二进制），必须遍历列表找第一个
- * prerelease 且 tag 匹配 b\d+ 的 release。
- */
-export async function fetchPlatformAssets(): Promise<{ version: string; platform: Platform; assets: RuntimeAsset[] }> {
-  const platform = platformOf()
-  const res = await fetch(`${API}/releases?per_page=10`, {
-    headers: { 'User-Agent': 'zhumora-studio', Accept: 'application/vnd.github+json' }
-  })
-  if (!res.ok) throw new Error(`GitHub API 请求失败: HTTP ${res.status}`)
-  const releases = (await res.json()) as GhRelease[]
-
-  const target = releases.find((r) => r.prerelease && /^b\d+$/.test(r.tag_name))
-  if (!target) throw new Error('未找到带预编译构建的 nightly release')
-
+/** 纯函数：从 release 列表选"最新的带资产 build"并解析 asset（可单测） */
+export function listAssets(
+  releases: GhRelease[],
+  platform: Platform
+): { tagName: string; skipped: string[]; assets: RuntimeAsset[] } {
+  const bReleases = releases.filter((r) => r.prerelease && /^b\d+$/.test(r.tag_name))
+  // 跳过 assets 为空的 release：nightly 先建 release 再传资产，
+  // 刚发布的前几个 build 的 assets 可能还是 0（取第一个带本机平台资产的）
   const re = assetRe(platform)
+  const target = bReleases.find((r) => r.assets.some((a) => re.test(a.name)))
+  if (!target) {
+    throw new Error(
+      bReleases.length > 0
+        ? `最新 nightly（${bReleases[0].tag_name}）的构建包还在上传中，稍后再试`
+        : '未找到带预编译构建的 nightly release'
+    )
+  }
+  const skipped = bReleases.slice(0, bReleases.indexOf(target)).map((r) => r.tag_name)
+
   const assets: RuntimeAsset[] = []
   for (const a of target.assets) {
     const m = a.name.match(re)
@@ -93,5 +95,28 @@ export async function fetchPlatformAssets(): Promise<{ version: string; platform
     }
   }
 
-  return { version: target.tag_name, platform, assets }
+  return { tagName: target.tag_name, skipped, assets }
+}
+
+/** 取最新 nightly release 的本机平台构建（网络层） */
+export async function fetchPlatformAssets(): Promise<{
+  version: string
+  platform: Platform
+  assets: RuntimeAsset[]
+  skippedNewer: string[]
+}> {
+  const platform = platformOf()
+  const res = await fetch(`${API}/releases?per_page=10`, {
+    headers: { 'User-Agent': 'zhumora-studio', Accept: 'application/vnd.github+json' }
+  })
+  if (!res.ok) throw new Error(`GitHub API 请求失败: HTTP ${res.status}`)
+  const releases = (await res.json()) as GhRelease[]
+  const { tagName, skipped, assets } = listAssets(releases, platform)
+  return {
+    version: tagName,
+    platform,
+    assets,
+    /** 比 target 更新、但资产还没传完的 build（用于 UI 提示） */
+    skippedNewer: skipped
+  }
 }

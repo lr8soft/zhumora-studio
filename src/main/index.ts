@@ -7,29 +7,43 @@ if (!gotLock) {
   app.quit()
 } else {
   let services: ReturnType<typeof createAppServices> | null = null
+  let isQuitting = false
+  let cleanupFinished = false
+  let cleanupPromise: Promise<void> | null = null
 
   app.on('second-instance', () => {
-    // demo 版单实例：聚焦主窗口（窗口重建逻辑后续扩展）
+    services?.showWindow()
   })
 
   app.whenReady().then(() => {
-    services = createAppServices()
+    services = createAppServices(() => isQuitting)
     bootSequence(services.ctx)
     services.createWindow()
+    services.createTray()
+
+    app.on('activate', () => {
+      services?.showWindow()
+    })
   })
 
   app.on('before-quit', (e) => {
-    // 优雅停止 server，避免孤儿进程占端口
-    if (services && (services.ctx.server.getState().state === 'starting' || services.ctx.server.getState().state === 'ready')) {
-      e.preventDefault()
-      void services.ctx.server.stop().finally(() => {
-        services?.dispose()
+    isQuitting = true
+    if (!services || cleanupFinished) return
+
+    // 第一次 quit 先等待 server 与持久化资源清理；第二次才让 Electron 真正退出。
+    e.preventDefault()
+    cleanupPromise ??= services
+      .dispose()
+      .catch((error) => {
+        console.error('应用退出清理失败：', error)
+      })
+      .finally(() => {
+        cleanupFinished = true
         app.quit()
       })
-    }
   })
 
   app.on('window-all-closed', () => {
-    app.quit()
+    // 托盘模式下即使没有窗口也保持主进程和 llama-server 运行。
   })
 }

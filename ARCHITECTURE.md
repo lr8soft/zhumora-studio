@@ -39,8 +39,9 @@ zhumora-studio/
     │   ├── keygen.ts               # 随机 API key（纯函数，main/renderer 共用）
     │   └── hfutil.ts               # HuggingFace 工具（mmproj 判定等，纯函数）
     ├── main/
-    │   ├── index.ts                # 入口：单实例锁、窗口创建、before-quit 优雅停止
-    │   ├── composition.ts          # ★ 唯一组合根：构造并接线全部服务
+    │   ├── index.ts                # 入口：单实例锁、托盘驻留、before-quit 优雅停止
+    │   ├── composition.ts          # ★ 唯一组合根：构造服务、窗口和托盘生命周期
+    │   ├── tray.ts                 # 跨平台系统托盘（内嵌图标、恢复窗口、真正退出）
     │   ├── settings/store.ts       # JSON settings 读写 + normalizeSettings（schemaVersion 迁移）
     │   ├── store/                  # sqlite：migrations.ts（单调版本 v1→v4）+ repositories
     │   │   ├── db.ts / migrations.ts
@@ -111,7 +112,8 @@ stopped ──start(params)──▶ starting ──/health OK──▶ ready
 - 健康检查（`GET /health`，1s 间隔、120s 超时）带内部标记头 `x-zhumora-internal`，代理见标记不记入调用记录。
 - SSE 响应按 chunk 直通转发（不阻塞客户端），同时旁路解析 `data:` 行取 model/usage；非流式响应边转发边累积（封顶 8MB）解析 JSON。客户端中断 → 销毁上游连接并记一条。
 - 端口被占用 = proxy `listen` 失败 → 清理已 spawn 进程，报错"无法监听端口 N（被占用？）"。不自增端口（与产品决策一致：让用户改参数）。
-- 退出：`proc.kill('SIGTERM')` → 3s 宽限 → `SIGKILL`；`before-quit` 时若 server 在 running 状态先 `stop()` 再 dispose，避免孤儿进程占端口。
+- 关闭主窗口默认隐藏到系统托盘，Electron 主进程、server 和下载任务继续运行；设置中可切换为直接退出。单实例再次启动、托盘激活和 macOS `activate` 都恢复原窗口。
+- 真正退出：`proc.kill('SIGTERM')` → 等待退出（3s 宽限）→ `SIGKILL`；`before-quit` 等待 `stop()` 和资源释放后再结束 Electron，避免孤儿进程占端口。
 - **v1 约束：同一时刻只运行一个 server 实例**。切模型 = 用新参数 restart。多实例留作扩展（profiles）。
 
 ### 3.2 启动参数可视化（核心卖点）

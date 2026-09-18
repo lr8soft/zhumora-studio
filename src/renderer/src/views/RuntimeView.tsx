@@ -1,5 +1,5 @@
 import { useAppStore } from '../store'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import type { ViewId } from '../components/Sidebar'
 import { compareVersions } from '@shared/version'
@@ -27,6 +27,12 @@ export default function RuntimeView({ onNavigate }: { onNavigate: (v: ViewId) =>
     setBusy(true)
     try {
       await window.zhumora.runtime.download(variant)
+    } catch (e) {
+      // 下载进行中的失败由 main 写入 status.error 展示；
+      // 前置校验失败（已有任务/无匹配构建）不会写 status，这里兜底
+      if (useAppStore.getState().runtime.state !== 'error') {
+        window.alert((e as Error).message)
+      }
     } finally {
       setBusy(false)
     }
@@ -37,10 +43,21 @@ export default function RuntimeView({ onNavigate }: { onNavigate: (v: ViewId) =>
     setBusy(true)
     try {
       await window.zhumora.runtime.assets()
+    } catch {
+      // 失败已由 main 写入 status.error 展示（UI 顶部红字），不重复弹
     } finally {
       setBusy(false)
     }
   }
+
+  // 打开运行时页即自动查最新构建（不等用户点"刷新"）；
+  // 已有检测/下载流程在跑时跳过，避免重复请求 GitHub
+  useEffect(() => {
+    const st = useAppStore.getState().runtime.state
+    if (st === 'checking' || st === 'downloading' || st === 'extracting') return
+    void refresh()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const customBinary = settings?.llamaBinary ?? ''
   const isLinux = runtime.detected?.platform === 'linux'
@@ -117,8 +134,14 @@ export default function RuntimeView({ onNavigate }: { onNavigate: (v: ViewId) =>
             ))}
           </div>
 
-          {runtime.state === 'error' && runtime.error && (
+          {/* 错误随时展示（刷新失败不改变 state，不能只看 state==='error'） */}
+          {runtime.error && (
             <div className="status-error">{runtime.error}</div>
+          )}
+          {runtime.info && (
+            <div style={{ marginTop: 10, fontSize: '0.8rem', color: 'var(--app-color-warn)' }}>
+              ℹ {runtime.info}
+            </div>
           )}
 
           {showCustom && (
