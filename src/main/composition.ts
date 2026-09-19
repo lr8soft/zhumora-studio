@@ -1,5 +1,6 @@
 import { BrowserWindow, Tray, app, shell } from 'electron'
 import { join } from 'path'
+import { IpcEvent } from '@shared/ipc'
 import { SettingsStore } from './settings/store'
 import { openDatabase } from './store/db'
 import { ModelsRepo } from './store/modelsRepo'
@@ -11,6 +12,7 @@ import { ServerManager } from './server/ServerManager'
 import { ChatProxy } from './chat/ChatProxy'
 import { RuntimeManager } from './runtime/RuntimeManager'
 import { ModelDownloader } from './models/downloader'
+import { DownloadHub } from './download/DownloadHub'
 import { registerIpcHandlers, bootSequence, type AppContext } from './ipc/handlers'
 import { createAppTray } from './tray'
 
@@ -36,14 +38,18 @@ export function createAppServices(isQuitting: () => boolean): AppServices {
   const requestLog = new RequestLogRepo(db)
   const server = new ServerManager(() => settings.get())
   const chatProxy = new ChatProxy(chat, () => server.getState())
-  const runtime = new RuntimeManager(join(app.getPath('userData'), 'llama'))
-  const modelDownloader = new ModelDownloader(() => settings.get())
+  const downloadHub = new DownloadHub()
+  const runtime = new RuntimeManager(join(app.getPath('userData'), 'llama'), downloadHub)
+  const modelDownloader = new ModelDownloader(() => settings.get(), downloadHub)
 
   const send = (channel: string, payload: unknown): void => {
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
   }
 
-  const ctx: AppContext = { settings, models, chat, keys, usage, requestLog, server, chatProxy, runtime, modelDownloader, send }
+  // 全局下载队列 → renderer（titlebar 下载面板）
+  downloadHub.onItem((item) => send(IpcEvent.downloadItem, item))
+
+  const ctx: AppContext = { settings, models, chat, keys, usage, requestLog, server, chatProxy, runtime, modelDownloader, downloadHub, send }
 
   const createWindow = (): BrowserWindow => {
     if (win && !win.isDestroyed()) return win
@@ -124,6 +130,7 @@ export function createAppServices(isQuitting: () => boolean): AppServices {
     chatProxy.abort()
     runtime.cancel()
     modelDownloader.cancelAll()
+    downloadHub.cancelAll()
     try {
       await server.stop()
     } finally {

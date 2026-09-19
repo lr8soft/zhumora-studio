@@ -119,6 +119,19 @@ export default {
     monthsAgo: 'vor {{n}} Mon.',
     yearsAgo: 'vor {{n}} J'
   },
+  downloads: {
+    title: 'Downloads',
+    ongoing: 'Läuft',
+    finished: 'Abgeschlossen',
+    empty: 'Keine Downloads',
+    emptyOngoing: 'Aktuell läuft kein Download',
+    cancel: 'Abbrechen',
+    clear: 'Leeren',
+    done: 'Fertig',
+    failed: 'Fehlgeschlagen',
+    kindRuntime: 'llama.cpp',
+    kindModel: 'Modell'
+  },
   server: {
     title: 'Server & Startparameter',
     desc: 'Schemageführte Parameter; greifen beim (Neu-)Start des Servers',
@@ -127,6 +140,9 @@ export default {
     restart: 'Server neu starten',
     needRuntime: 'Lade zuerst llama.cpp auf der Seite „Runtime“',
     needModel: 'Zuerst eine Modell-Datei wählen',
+    autoTune: 'Automatisch für meine Hardware einstellen',
+    tuning: 'Berechne…',
+    autoTuneHint: 'Schätzt GPU-Layer und Kontext aus deiner VRAM / RAM und den GGUF-Metadaten des Modells',
     state: {
       stopped: 'Gestoppt',
       starting: 'Startet',
@@ -276,6 +292,8 @@ export default {
     binarySub: 'Leer = Build von der Seite „Runtime“ verwenden',
     binaryPh: '(leer = geladene Runtime automatisch verwenden)',
     binaryHint: 'Für Offline-Umgebungen oder eigene CUDA/Vulkan-Builds hier den vollen Pfad zu {{bin}} angeben. Hat Vorrang vor der geladenen Runtime.',
+    autoDownload: 'llama.cpp beim ersten Start automatisch herunterladen',
+    autoDownloadHint: 'Ohne installierte Runtime wird beim Start die empfohlene Build für deine GPU geladen. Später unter „Runtime“ änderbar.',
     language: 'Sprache',
     languageHint: 'Sprache der Oberfläche. „Auto“ folgt der Systemsprache.',
     autoDetect: 'Auto (System)',

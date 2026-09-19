@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3'
-import type { ModelInfo, ModelKind } from '@shared/types'
+import type { ModelInfo, ModelKind, ModelMeta } from '@shared/types'
 
 interface ModelRow {
   id: string
@@ -9,7 +9,18 @@ interface ModelRow {
   kind: string | null
   arch: string | null
   quant: string | null
+  meta: string | null
   added_at: number
+}
+
+function parseMeta(raw: string | null): ModelMeta | undefined {
+  if (!raw) return undefined
+  try {
+    const m = JSON.parse(raw) as ModelMeta
+    return m && typeof m === 'object' ? m : undefined
+  } catch {
+    return undefined
+  }
 }
 
 function toModel(row: ModelRow): ModelInfo {
@@ -21,6 +32,7 @@ function toModel(row: ModelRow): ModelInfo {
     kind: (row.kind === 'mmproj' ? 'mmproj' : 'model') as ModelKind,
     arch: row.arch ?? undefined,
     quant: row.quant ?? undefined,
+    meta: parseMeta(row.meta),
     addedAt: row.added_at
   }
 }
@@ -36,12 +48,13 @@ export class ModelsRepo {
   upsert(model: ModelInfo): void {
     this.db
       .prepare(
-        `INSERT INTO models (id, name, path, size, kind, arch, quant, added_at)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-         ON CONFLICT(path) DO UPDATE SET name = excluded.name, size = excluded.size,
-           kind = excluded.kind,
-           arch = COALESCE(excluded.arch, models.arch),
-           quant = COALESCE(excluded.quant, models.quant)`
+        `INSERT INTO models (id, name, path, size, kind, arch, quant, meta, added_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(path) DO UPDATE SET name = excluded.name, size = excluded.size,
+            kind = excluded.kind,
+            arch = COALESCE(excluded.arch, models.arch),
+            quant = COALESCE(excluded.quant, models.quant),
+            meta = COALESCE(excluded.meta, models.meta)`
       )
       .run(
         model.id,
@@ -51,6 +64,7 @@ export class ModelsRepo {
         model.kind ?? 'model',
         model.arch ?? null,
         model.quant ?? null,
+        model.meta ? JSON.stringify(model.meta) : null,
         model.addedAt
       )
   }

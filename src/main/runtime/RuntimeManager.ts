@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync, readdir
 import { join, dirname } from 'path'
 import yauzl from 'yauzl'
 import { downloadFile, type DownloadOptions } from '../download/Downloader'
+import { DownloadHub } from '../download/DownloadHub'
 import { fetchPlatformAssets } from './github'
 import { pickVariant, probeGpu } from './detect'
 import type { RuntimeAsset, RuntimeStatus } from '@shared/types'
@@ -38,8 +39,16 @@ export class RuntimeManager {
   private listener: RuntimeListener | null = null
   private abort: AbortController | null = null
   private busy = false
+  private hub: DownloadHub | null = null
 
-  constructor(private baseDir: string) {}
+  constructor(private baseDir: string, hub?: DownloadHub) {
+    this.hub = hub ?? null
+  }
+
+  /** 挂全局下载队列（composition 装配时注入） */
+  attachHub(hub: DownloadHub): void {
+    this.hub = hub
+  }
 
   onStatus(cb: RuntimeListener): void {
     this.listener = cb
@@ -147,6 +156,22 @@ export class RuntimeManager {
 
     this.busy = true
     this.abort = new AbortController()
+    // 全局下载队列登记（titlebar 铃铛面板可见/可取消）
+    const hubId = `runtime:${asset.version}-${asset.variant}`
+    const hubTotal = asset.size + (asset.companion?.size ?? 0)
+    this.hub?.add(
+      hubId,
+      {
+        kind: 'runtime',
+        name: `llama.cpp ${asset.version} (${asset.variant})`,
+        detail: asset.name,
+        done: 0,
+        total: hubTotal,
+        speed: 0,
+        status: 'downloading'
+      },
+      () => this.cancel()
+    )
     try {
       const dir = this.installDir(asset.version, asset.variant)
       mkdirSync(dir, { recursive: true })
@@ -158,10 +183,14 @@ export class RuntimeManager {
         dest: zipPath,
         expectedSha256: asset.sha256,
         signal: this.abort.signal,
-        onProgress: (p) => this.emit({ progress: { ...p, phase: 'downloading' } })
+        onProgress: (p) => {
+          this.emit({ progress: { ...p, phase: 'downloading' } })
+          this.hub?.update(hubId, { done: p.done, total: hubTotal, speed: p.speed })
+        }
       })
 
       this.emit({ state: 'extracting', progress: { done: 0, total: 0, speed: 0, phase: 'extracting' } })
+      this.hub?.update(hubId, { detail: '解压中…' })
       if (asset.name.endsWith('.zip')) {
         await extractZip(zipPath, dir, (done, total) =>
           this.emit({ progress: { done, total, speed: 0, phase: 'extracting' } })
@@ -184,7 +213,15 @@ export class RuntimeManager {
           dest: compPath,
           expectedSha256: asset.companion.sha256,
           signal: this.abort.signal,
-          onProgress: (p) => this.emit({ progress: { ...p, phase: 'downloading' } })
+          onProgress: (p) => {
+            this.emit({ progress: { ...p, phase: 'downloading' } })
+            this.hub?.update(hubId, {
+              done: asset.size + p.done,
+              total: hubTotal,
+              speed: p.speed,
+              detail: '下载 CUDA 运行时组件…'
+            })
+          }
         })
         await extractZip(compPath, dir, () => {})
         try {
@@ -198,6 +235,7 @@ export class RuntimeManager {
       if (!binary) throw new Error(`解压完成但未找到 ${binaryName()}`)
 
       // 验证二进制可执行（--version 探测；失败 = DLL 缺失/架构不符/损坏）
+      this.hub?.update(hubId, { detail: '验证二进制…' })
       await verifyBinary(binary)
       const manifest: Manifest = {
         version: asset.version,
@@ -219,12 +257,15 @@ export class RuntimeManager {
         installed: this.listInstalled()
       }
       this.listener?.(this.status)
+      this.hub?.finish(hubId, true)
     } catch (err) {
       const msg = (err as Error).message
       if (msg === 'ABORTED') {
         this.emit({ state: 'detected', progress: undefined, error: '下载已取消，可断点续传' })
+        this.hub?.finish(hubId, false, '已取消（进度已保留，可续传）')
       } else {
         this.emit({ state: 'error', progress: undefined, error: msg })
+        this.hub?.finish(hubId, false, msg)
       }
     } finally {
       this.busy = false

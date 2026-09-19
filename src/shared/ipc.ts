@@ -11,6 +11,8 @@ import type {
   HfModelDetail,
   HfSort,
   LaunchParams,
+  AutoParamsResult,
+  GlobalDownloadItem,
   ModelDownloadDone,
   ModelDownloadError,
   ModelDownloadProgress,
@@ -46,6 +48,10 @@ export const Ipc = {
   runtimeAssets: 'runtime:assets',
   runtimeDownload: 'runtime:download',
   runtimeCancel: 'runtime:cancel',
+  downloadsList: 'downloads:list',
+  downloadsCancel: 'downloads:cancel',
+  downloadsClearFinished: 'downloads:clear-finished',
+  serverSuggestParams: 'server:suggest-params',
   chatSend: 'chat:send',
   chatAbort: 'chat:abort',
   chatSessions: 'chat:sessions',
@@ -86,7 +92,8 @@ export const IpcEvent = {
   chatError: 'ev:chat-error',
   modelProgress: 'ev:model-progress',
   modelDone: 'ev:model-done',
-  modelError: 'ev:model-error'
+  modelError: 'ev:model-error',
+  downloadItem: 'ev:download-item'
 } as const
 
 export type IpcEventName = (typeof IpcEvent)[keyof typeof IpcEvent]
@@ -102,6 +109,7 @@ export interface IpcEventPayloads {
   [IpcEvent.modelProgress]: ModelDownloadProgress
   [IpcEvent.modelDone]: ModelDownloadDone
   [IpcEvent.modelError]: ModelDownloadError
+  [IpcEvent.downloadItem]: GlobalDownloadItem
 }
 
 // ---------- invoke 请求/响应契约 ----------
@@ -123,6 +131,11 @@ export interface ApiServer {
   logs(): Promise<string[]>
   /** 运行状态快照（server 进程 + 硬件：CPU / 内存 / GPU） */
   status(): Promise<ServerStatus>
+  /**
+   * 按本机 VRAM/RAM + 模型 GGUF 元数据推演推荐启动参数（nGpuLayers / ctxSize 等）。
+   * currentParams = 当前参数草稿：用户已改过的 ctx/层数会被保留，只补没动过的默认值。
+   */
+  suggestParams(modelPath: string, currentParams: LaunchParams): Promise<AutoParamsResult>
 }
 
 export interface ApiRuntime {
@@ -162,6 +175,12 @@ export interface ApiUsage {
   reset(): Promise<void>
 }
 
+export interface ApiDownloads {
+  list(): Promise<GlobalDownloadItem[]>
+  cancel(id: string): Promise<void>
+  clearFinished(): Promise<void>
+}
+
 export interface ApiSettings {
   get(): Promise<Settings>
   save(patch: Partial<Settings>): Promise<Settings>
@@ -187,6 +206,7 @@ export interface ZhumoraApi {
   chat: ApiChat
   keys: ApiKeys
   usage: ApiUsage
+  downloads: ApiDownloads
   settings: ApiSettings
   system: ApiSystem
   window: ApiWindow

@@ -119,6 +119,19 @@ export default {
     monthsAgo: '{{n}} か月前',
     yearsAgo: '{{n}} 年前'
   },
+  downloads: {
+    title: 'ダウンロード',
+    ongoing: '進行中',
+    finished: '完了',
+    empty: 'ダウンロードはありません',
+    emptyOngoing: '現在ダウンロード中のものはありません',
+    cancel: 'キャンセル',
+    clear: '削除',
+    done: '完了',
+    failed: '失敗',
+    kindRuntime: 'llama.cpp',
+    kindModel: 'モデル'
+  },
   server: {
     title: 'サーバーと起動パラメータ',
     desc: 'パラメータは schema 駆動。変更後、起動（再起動）で反映されます',
@@ -127,6 +140,9 @@ export default {
     restart: '再起動',
     needRuntime: '先に「ランタイム」ページで llama.cpp をダウンロードしてください',
     needModel: '先にモデルファイルを選択してください',
+    autoTune: 'この環境に合わせて自動設定',
+    tuning: '計算中…',
+    autoTuneHint: 'VRAM / RAM とモデルの GGUF メタデータから GPU レイヤー数とコンテキスト長を推定します',
     state: {
       stopped: '停止中',
       starting: '起動中',
@@ -276,6 +292,8 @@ export default {
     binarySub: '空欄 =「ランタイム」ページのビルドを使用',
     binaryPh: '（空欄 = ダウンロード済みのランタイムを自動使用）',
     binaryHint: 'オフライン環境やカスタム CUDA/Vulkan ビルドを使う場合、{{bin}} の完全なパスを指定します。自動ダウンロードされたランタイムより優先されます。',
+    autoDownload: '初回起動時に llama.cpp を自動ダウンロード',
+    autoDownloadHint: 'ランタイム未インストールの場合、起動時にGPU向けの推奨ビルドを自動取得します。その後「ランタイム」ページで変更できます。',
     language: '言語',
     languageHint: 'インターフェースの言語。「自動」の場合、システム言語に追従します。',
     autoDetect: '自動（システム）',

@@ -1,6 +1,7 @@
 import { basename, join } from 'path'
-import { mkdirSync } from 'fs'
+import { mkdirSync, statSync, existsSync } from 'fs'
 import { downloadFile } from '../download/Downloader'
+import { DownloadHub } from '../download/DownloadHub'
 import { isMmprojPath } from '@shared/hfutil'
 import { fileUrl } from './huggingface'
 import type {
@@ -21,15 +22,22 @@ interface Task {
 
 /**
  * 模型下载：HF resolve URL → models 目录（.part 续传）→ 完成后返回路径。
- * 支持多任务并发（按 repoId::file 去重）。
+ * 支持多任务并发（按 repoId::file 去重）。全部任务同时登记进全局下载队列（DownloadHub）。
  */
 export class ModelDownloader {
   private tasks = new Map<string, Task>()
   private progressCb: ProgressListener | null = null
   private doneCb: DoneListener | null = null
   private errorCb: ErrorListener | null = null
+  private hub: DownloadHub | null = null
 
-  constructor(private getSettings: () => Settings) {}
+  constructor(private getSettings: () => Settings, hub?: DownloadHub) {
+    this.hub = hub ?? null
+  }
+
+  attachHub(hub: DownloadHub): void {
+    this.hub = hub
+  }
 
   onProgress(cb: ProgressListener): void {
     this.progressCb = cb
@@ -61,22 +69,50 @@ export class ModelDownloader {
     const abort = new AbortController()
     this.tasks.set(id, { id, abort })
 
+    // 全局下载队列：预取 .part 已有进度 + 文件大小做进度起点
+    let done0 = 0
+    let total0 = 0
+    try {
+      if (existsSync(dest + '.part')) done0 = statSync(dest + '.part').size
+      if (existsSync(dest)) total0 = statSync(dest).size
+    } catch {
+      // ignore
+    }
+    this.hub?.add(
+      id,
+      {
+        kind: 'model',
+        name: basename(file),
+        detail: repoId,
+        done: done0,
+        total: total0,
+        speed: 0,
+        status: 'downloading'
+      },
+      () => this.cancel(id)
+    )
+
     try {
       await downloadFile({
         url: fileUrl(repoId, file),
         dest,
         signal: abort.signal,
-        onProgress: (p) =>
+        onProgress: (p) => {
           this.progressCb?.({ id, repoId, file: basename(file), done: p.done, total: p.total, speed: p.speed })
+          this.hub?.update(id, { done: p.done, total: p.total, speed: p.speed })
+        }
       })
       this.tasks.delete(id)
+      this.hub?.finish(id, true)
       this.doneCb?.({ id, repoId, file: basename(file), path: dest })
     } catch (err) {
       this.tasks.delete(id)
       const msg = (err as Error).message
       if (msg === 'ABORTED') {
+        this.hub?.finish(id, false, '已取消（保留进度，可续传）')
         this.errorCb?.({ id, message: '已取消（保留进度，可续传）', cancelled: true })
       } else {
+        this.hub?.finish(id, false, msg)
         this.errorCb?.({ id, message: msg })
       }
       if (msg !== 'ABORTED') throw err

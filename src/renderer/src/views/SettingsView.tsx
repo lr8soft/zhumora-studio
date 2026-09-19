@@ -47,6 +47,10 @@ export default function SettingsView() {
     if (p) setDraft((d) => ({ ...d, llamaBinary: p }))
   }
 
+  const runtimeAutoDownload = draft.runtime?.autoDownload ?? settings?.runtime.autoDownload ?? true
+  const setRuntimeAutoDownload = (v: boolean) =>
+    setDraft((d) => ({ ...d, runtime: { ...(d.runtime ?? settings?.runtime ?? { version: '', variant: '', autoUpdate: false, autoDownload: true }), autoDownload: v } }))
+
   const openModelsDir = async () => {
     await window.zhumora.system.openPath(settings?.modelsDir ?? '')
   }
@@ -137,6 +141,15 @@ export default function SettingsView() {
           <div className="hint" style={{ lineHeight: 1.5 }}>
             {t('settings.binaryHint', { bin: binName() })}
           </div>
+          <label className="check-line" style={{ marginTop: 4 }}>
+            <input
+              type="checkbox"
+              checked={runtimeAutoDownload}
+              onChange={(e) => setRuntimeAutoDownload(e.target.checked)}
+            />
+            <span>{t('settings.autoDownload')}</span>
+          </label>
+          <div className="hint">{t('settings.autoDownloadHint')}</div>
         </div>
       </div>
 

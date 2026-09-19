@@ -36,7 +36,9 @@ const api: ZhumoraApi = {
     start: (params) => ipcRenderer.invoke(Ipc.serverStart, params),
     stop: () => ipcRenderer.invoke(Ipc.serverStop),
     logs: () => ipcRenderer.invoke(Ipc.serverLogs),
-    status: () => ipcRenderer.invoke(Ipc.serverStatus)
+    status: () => ipcRenderer.invoke(Ipc.serverStatus),
+    suggestParams: (modelPath, currentParams) =>
+      ipcRenderer.invoke(Ipc.serverSuggestParams, modelPath, currentParams)
   },
   runtime: {
     status: () => ipcRenderer.invoke(Ipc.runtimeStatus),
@@ -66,6 +68,11 @@ const api: ZhumoraApi = {
     byKey: () => ipcRenderer.invoke(Ipc.usageByKey),
     requests: (limit?: number) => ipcRenderer.invoke(Ipc.usageRequests, limit),
     reset: () => ipcRenderer.invoke(Ipc.usageReset)
+  },
+  downloads: {
+    list: () => ipcRenderer.invoke(Ipc.downloadsList),
+    cancel: (id: string) => ipcRenderer.invoke(Ipc.downloadsCancel, id),
+    clearFinished: () => ipcRenderer.invoke(Ipc.downloadsClearFinished)
   },
   settings: {
     get: () => ipcRenderer.invoke(Ipc.settingsGet),

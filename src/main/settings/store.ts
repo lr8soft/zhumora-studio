@@ -32,7 +32,9 @@ export function normalizeSettings(raw: unknown): Settings {
     runtime: {
       version: typeof r.runtime?.version === 'string' ? r.runtime.version : '',
       variant: typeof r.runtime?.variant === 'string' ? r.runtime.variant : '',
-      autoUpdate: Boolean(r.runtime?.autoUpdate)
+      autoUpdate: Boolean(r.runtime?.autoUpdate),
+      // 旧 settings 无此字段时默认开（首启自动下载推荐构建）
+      autoDownload: r.runtime?.autoDownload !== false
     },
     lastParams: migrateLoadMode({ ...defaultParams(), ...(r.lastParams as LaunchParams ?? {}) }),
     theme: r.theme === 'light' || r.theme === 'dark' ? r.theme : 'system',

@@ -3,6 +3,7 @@ import type {
   ApiKeyInfo,
   ChatMessage,
   ChatSession,
+  GlobalDownloadItem,
   LaunchParams,
   ModelInfo,
   ModelDownloadProgress,
@@ -48,6 +49,14 @@ interface ModelDownloadState extends ModelDownload {
   cancelled?: boolean
 }
 
+// ---------- 全局下载队列（titlebar 铃铛面板） ----------
+interface DownloadsSlice {
+  /** id → 条目（进行中 + 最近完成的） */
+  globalDownloads: Record<string, GlobalDownloadItem>
+  setGlobalDownload: (item: GlobalDownloadItem) => void
+  clearFinishedDownloads: () => Promise<void>
+}
+
 // ---------- chat ----------
 interface ChatSlice {
   sessions: ChatSession[]
@@ -79,7 +88,7 @@ interface SettingsSlice {
   setParamDirty: (d: boolean) => void
 }
 
-interface AppStore extends ServerSlice, ModelsSlice, ChatSlice, KeysSlice, SettingsSlice {
+interface AppStore extends ServerSlice, ModelsSlice, DownloadsSlice, ChatSlice, KeysSlice, SettingsSlice {
   init: () => Promise<void>
   loadModels: () => Promise<void>
 }
@@ -119,6 +128,21 @@ export const useAppStore = create<AppStore>((set, get) => ({
       delete downloads[id]
       return { downloads }
     }),
+
+  // 全局下载
+  globalDownloads: {},
+  setGlobalDownload: (item) =>
+    set((s) => ({ globalDownloads: { ...s.globalDownloads, [item.id]: item } })),
+  clearFinishedDownloads: async () => {
+    await window.zhumora.downloads.clearFinished()
+    set((s) => {
+      const g: Record<string, GlobalDownloadItem> = {}
+      for (const it of Object.values(s.globalDownloads)) {
+        if (it.status === 'downloading') g[it.id] = it
+      }
+      return { globalDownloads: g }
+    })
+  },
 
   // chat
   sessions: [],
@@ -161,14 +185,17 @@ export const useAppStore = create<AppStore>((set, get) => ({
 
   // actions
   init: async () => {
-    const [settings, serverState, runtime, models, sessions, keys] = await Promise.all([
+    const [settings, serverState, runtime, models, sessions, keys, globalDownloads] = await Promise.all([
       window.zhumora.settings.get(),
       window.zhumora.server.state(),
       window.zhumora.runtime.status(),
       window.zhumora.models.list(),
       window.zhumora.chat.sessions(),
-      window.zhumora.keys.list()
+      window.zhumora.keys.list(),
+      window.zhumora.downloads.list()
     ])
+    const gmap: Record<string, GlobalDownloadItem> = {}
+    for (const item of globalDownloads) gmap[item.id] = item
     set({
       settings,
       serverState,
@@ -176,6 +203,7 @@ export const useAppStore = create<AppStore>((set, get) => ({
       models,
       sessions,
       keys,
+      globalDownloads: gmap,
       paramDraft: { ...defaultParams(), ...(settings.lastParams as LaunchParams) }
     })
   },
@@ -230,7 +258,8 @@ export function subscribeMainEvents(): () => void {
       useAppStore.getState().clearDownload(d.id)
       await useAppStore.getState().loadModels()
     }),
-    window.zhumora.on(IpcEvent.modelError, (e) => useAppStore.getState().failDownload(e.id, e.message, e.cancelled))
+    window.zhumora.on(IpcEvent.modelError, (e) => useAppStore.getState().failDownload(e.id, e.message, e.cancelled)),
+    window.zhumora.on(IpcEvent.downloadItem, (item) => useAppStore.getState().setGlobalDownload(item))
   ]
   return () => offs.forEach((off) => off())
 }

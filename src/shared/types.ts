@@ -90,6 +90,61 @@ export interface ServerLogEvent {
   line: string
 }
 
+// ---------- 全局下载队列（titlebar 铃铛面板） ----------
+
+export type DownloadKind = 'runtime' | 'model'
+export type DownloadStatus = 'downloading' | 'done' | 'failed'
+
+/** 全局下载队列中的单项：llama.cpp 运行时与模型文件统一口径 */
+export interface GlobalDownloadItem {
+  /** 唯一 id：model = `repoId::file`；runtime = `runtime:<version>-<variant>` */
+  id: string
+  kind: DownloadKind
+  name: string
+  detail?: string
+  done: number
+  total: number
+  speed: number
+  status: DownloadStatus
+  message?: string
+}
+
+// ---------- 启动参数自动推演（autoTuner） ----------
+
+/** 实时 GPU 信息（与 ServerStatus.gpus 对齐的子集） */
+export interface GpuInfo {
+  index: number
+  name: string
+  memUsedMB: number
+  memTotalMB: number
+}
+
+/** GGUF 模型元数据（GGUF 头解析得到，用于 VRAM/RAM 推演） */
+export interface ModelMeta {
+  arch?: string
+  name?: string
+  /** block_count（transformer 层数） */
+  blockCount?: number
+  /** n_head（注意力头数） */
+  nHead?: number
+  /** n_head_kv（KV 头数；GQA/MQA 小于 n_head，缺省按 n_head） */
+  nHeadKV?: number
+  /** n_embd（嵌入维度） */
+  nEmbed?: number
+  /** 训练上下文长度 */
+  contextLength?: number
+}
+
+export interface AutoParamsResult {
+  /** 应写进 paramDraft 的参数补丁（只含推荐值；用户可再改） */
+  patch: LaunchParams
+  model?: ModelMeta
+  gpus: GpuInfo[]
+  ramTotalMB: number
+  /** 没有 GPU / 装不下等约束说明（UI 展示用） */
+  reason?: string
+}
+
 // ---------- runtime（llama.cpp 下载） ----------
 
 export type RuntimeStateName =
@@ -164,6 +219,8 @@ export interface ModelInfo {
   kind: ModelKind
   arch?: string
   quant?: string
+  /** GGUF 头解析的模型元数据（推演启动参数用；老库记录可能缺省） */
+  meta?: ModelMeta
   addedAt: number
 }
 
@@ -362,6 +419,8 @@ export interface Settings {
     version: string
     variant: string
     autoUpdate: boolean
+    /** 首次启动（未安装 runtime）时自动下载推荐构建，默认开 */
+    autoDownload: boolean
   }
   lastParams: LaunchParams
   theme: 'light' | 'dark' | 'system'

@@ -82,6 +82,29 @@ export default function ServerView() {
 
   const endpoint = serverState.host ? `http://${serverState.host}:${serverState.port}/v1` : ''
 
+  // 自动配置：按本机 VRAM/RAM + 模型 GGUF 元数据推演 nGpuLayers / ctxSize 等
+  const [tuning, setTuning] = useState(false)
+  const [tuneNote, setTuneNote] = useState('')
+  const applyTune = async () => {
+    if (!paramDraft.modelPath) return
+    setTuning(true)
+    setTuneNote('')
+    try {
+      const res = await window.zhumora.server.suggestParams(String(paramDraft.modelPath), paramDraft)
+      const draft = { ...paramDraft, ...res.patch }
+      setParamDraft(draft)
+      setParamDirty(true)
+      if (res.reason) {
+        setTuneNote(res.reason)
+        setTimeout(() => setTuneNote(''), 8000)
+      }
+    } catch (e) {
+      showToast((e as Error).message)
+    } finally {
+      setTuning(false)
+    }
+  }
+
   return (
     <div className="view">
       <div className="view-header">
@@ -226,6 +249,19 @@ export default function ServerView() {
                 </button>
               </div>
             </div>
+            {paramDraft.modelPath && (
+              <div className="tune-bar" style={{ marginBottom: 12 }}>
+                <button className="btn btn-sm" onClick={() => void applyTune()} disabled={running || tuning}>
+                  {tuning ? t('server.tuning') : t('server.autoTune')}
+                </button>
+                <span className="hint" style={{ margin: 0 }}>
+                  {t('server.autoTuneHint')}
+                </span>
+                {tuneNote && (
+                  <span style={{ color: 'var(--app-color-success)', fontSize: '0.767rem' }}>✓ {tuneNote}</span>
+                )}
+              </div>
+            )}
             <div className="field">
               <label>{t('server.mmproj')}</label>
               <div className="pick">

@@ -1,6 +1,6 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron'
 import { randomUUID } from 'crypto'
-import { existsSync, unlinkSync, accessSync, constants } from 'fs'
+import { existsSync, unlinkSync, accessSync, constants, statSync } from 'fs'
 import { Ipc, IpcEvent } from '@shared/ipc'
 import { defaultParams } from '@shared/buildArgs'
 import { LAUNCH_PARAMS, EXTRA_ARGS_KEY } from '@shared/launchParams'
@@ -13,15 +13,18 @@ import { KeysRepo } from '../store/keysRepo'
 import { UsageRepo } from '../store/usageRepo'
 import { RequestLogRepo } from '../store/requestLogRepo'
 import { scanModelsDir } from '../models/scanner'
-import { modelInfoFromPath } from '../models/gguf'
+import { modelInfoFromPath, parseGgufHeader, toModelMeta } from '../models/gguf'
 import { ServerManager } from '../server/ServerManager'
 import { collectServerStatus } from '../server/status'
 import { ChatProxy } from '../chat/ChatProxy'
 import { RuntimeManager } from '../runtime/RuntimeManager'
 import { ModelDownloader } from '../models/downloader'
+import { DownloadHub } from '../download/DownloadHub'
 import { searchModels, getModelDetail, getOwnerAvatar } from '../models/huggingface'
 import { generateApiKeyUnique } from '@shared/keygen'
-import type { HfSort } from '@shared/types'
+import { totalmem } from 'os'
+import { autoTune } from '@shared/autoTuner'
+import type { AutoParamsResult, HfSort } from '@shared/types'
 
 /** 输入校验：LaunchParams 按 schema 收敛（只保留已知 key + 类型） */
 function validateParams(raw: unknown): LaunchParams {
@@ -55,6 +58,7 @@ export interface AppContext {
   chatProxy: ChatProxy
   runtime: RuntimeManager
   modelDownloader: ModelDownloader
+  downloadHub: DownloadHub
   send: (channel: string, payload: unknown) => void
 }
 
@@ -65,7 +69,7 @@ function syncProxyKey(ctx: AppContext): void {
 }
 
 export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWindow | null): void {
-  const { settings, models, chat, keys, usage, requestLog, server, chatProxy, runtime, modelDownloader, send } = ctx
+  const { settings, models, chat, keys, usage, requestLog, server, chatProxy, runtime, modelDownloader, downloadHub, send } = ctx
 
   // 接线事件 → renderer（事件通道用 IpcEvent，不是 invoke 的 Ipc）
   server.onState((s) => send(IpcEvent.serverState, s))
@@ -180,6 +184,35 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   ipcMain.handle(Ipc.runtimeAssets, async () => runtime.refreshAssets())
   ipcMain.handle(Ipc.runtimeDownload, async (_e, variant: string) => runtime.download(variant))
   ipcMain.handle(Ipc.runtimeCancel, async () => runtime.cancel())
+
+  // ---------- 全局下载队列（titlebar 铃铛面板） ----------
+  ipcMain.handle(Ipc.downloadsList, async () => downloadHub.list())
+  ipcMain.handle(Ipc.downloadsCancel, async (_e, id: string) => {
+    if (typeof id === 'string') downloadHub.cancel(id)
+  })
+  ipcMain.handle(Ipc.downloadsClearFinished, async () => downloadHub.clearFinished())
+
+  // ---------- 启动参数推演（按本机 VRAM/RAM + GGUF 元数据） ----------
+  ipcMain.handle(Ipc.serverSuggestParams, async (_e, modelPath: unknown, currentParams: unknown) => {
+    if (typeof modelPath !== 'string' || !modelPath || !existsSync(modelPath)) {
+      throw new Error('模型文件不存在')
+    }
+    const size = statSync(modelPath).size
+    const header = parseGgufHeader(modelPath)
+    const model = toModelMeta(header)
+    const status = await collectServerStatus(server.getState())
+    const cur = (currentParams ?? {}) as Record<string, unknown>
+    const num = (v: unknown): number | undefined => (typeof v === 'number' && Number.isFinite(v) ? v : undefined)
+    return autoTune(
+      {
+        model,
+        modelSize: size,
+        gpus: status.gpus,
+        ramTotalMB: Math.round(totalmem() / 1048576)
+      },
+      { userCtx: num(cur.ctxSize), userLayers: num(cur.nGpuLayers) }
+    ) as AutoParamsResult
+  })
 
   // ---------- chat ----------
   ipcMain.handle(Ipc.chatSessions, async () => chat.sessions())
@@ -363,10 +396,26 @@ export function registerIpcHandlers(ctx: AppContext, getWindow: () => BrowserWin
   ipcMain.handle(Ipc.windowClose, () => getWindow()?.close())
 }
 
-/** 启动时恢复：runtime 自检 + server 状态（stopped）+ 密钥同步到 ChatProxy */
+/**
+ * 启动时恢复：runtime 自检 + server 状态（stopped）+ 密钥同步到 ChatProxy。
+ * 首启（未装 runtime）且 settings.runtime.autoDownload 开启时，
+ * 探测完直接下载推荐构建——普通用户不用管运行时页。
+ */
 export function bootSequence(ctx: AppContext): void {
-  const { settings, server, runtime } = ctx
-  void runtime.check()
+  const { settings, runtime } = ctx
+  void (async () => {
+    const status = await runtime.check()
+    if (status.state === 'ready' || status.state === 'downloading' || status.state === 'extracting') return
+    // 用户已指定自定义二进制：不需要下载
+    if (settings.get().llamaBinary.trim()) return
+    if (!settings.get().runtime.autoDownload) return
+    if (status.state !== 'detected') return // 网络失败等情况由 UI 展示错误
+    try {
+      await runtime.download(status.recommended)
+    } catch {
+      // 下载失败已写入 runtime.status.error，UI 展示
+    }
+  })()
   // 恢复 API key（密钥管理表为准）
   syncProxyKey(ctx)
 }

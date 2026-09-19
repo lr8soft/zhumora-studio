@@ -145,6 +145,19 @@ export default {
     monthsAgo: '{{n}} 个月前',
     yearsAgo: '{{n}} 年前'
   },
+  downloads: {
+    title: '下载',
+    ongoing: '进行中',
+    finished: '已完成',
+    empty: '暂无下载任务',
+    emptyOngoing: '当前没有进行中的下载',
+    cancel: '取消',
+    clear: '清除',
+    done: '已完成',
+    failed: '失败',
+    kindRuntime: 'llama.cpp',
+    kindModel: '模型'
+  },
   server: {
     title: '服务与启动参数',
     desc: '参数由 schema 驱动，改完点启动即生效（运行中修改需重启）',
@@ -153,6 +166,9 @@ export default {
     restart: '重新启动',
     needRuntime: '请先在“运行时”页下载 llama.cpp',
     needModel: '请先选择模型文件',
+    autoTune: '按本机配置自动设置',
+    tuning: '计算中…',
+    autoTuneHint: '根据显存 / 内存与模型 GGUF 元数据推演 GPU 层数和上下文长度',
     state: {
       stopped: '已停止',
       starting: '启动中',
@@ -276,6 +292,8 @@ export default {
     binarySub: '留空 = 使用“运行时”页下载的构建',
     binaryPh: '（空 = 自动使用已下载 runtime）',
     binaryHint: '离线环境或想用自定义 CUDA/Vulkan 构建时，在此指定 {{bin}} 的完整路径，优先级高于自动下载的 runtime。',
+    autoDownload: '首次启动时自动下载 llama.cpp',
+    autoDownloadHint: '未安装运行时，启动应用会自动获取适配本机显卡的推荐构建；之后仍可在“运行时”页更换其他构建。',
     language: '界面语言',
     languageHint: '界面语言。选“自动”时跟随系统语言。',
     autoDetect: '自动（跟随系统）',

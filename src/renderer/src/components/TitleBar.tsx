@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import DownloadBell from './DownloadBell'
 
 export default function TitleBar() {
   const { t } = useTranslation()
@@ -11,6 +12,9 @@ export default function TitleBar() {
         <span>{t('app.name')}</span>
       </div>
       <div className="window-drag-space" />
+      <div className="titlebar-tools">
+        <DownloadBell />
+      </div>
       <div className="window-controls">
         <button title={t('window.min')} onClick={() => void window.zhumora.window.minimize()}>
           <svg width="11" height="11" viewBox="0 0 11 11"><path d="M1 5.5h9" stroke="currentColor" strokeWidth="1.2" /></svg>

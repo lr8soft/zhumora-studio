@@ -1,6 +1,6 @@
 import type Database from 'better-sqlite3'
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 export function runMigrations(db: Database.Database): void {
   db.exec('CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)')
@@ -94,6 +94,13 @@ export function runMigrations(db: Database.Database): void {
          FROM messages
          WHERE role = 'assistant' AND (prompt_tokens IS NOT NULL OR completion_tokens IS NOT NULL)`
       )
+    }
+    if (current < 5) {
+      // models 表补 GGUF 元数据列（启动参数推演用：block_count / n_head / n_embd 等 JSON）
+      const hasMeta = db.prepare(`SELECT 1 FROM pragma_table_info('models') WHERE name = 'meta'`).get()
+      if (!hasMeta) {
+        db.exec(`ALTER TABLE models ADD COLUMN meta TEXT`)
+      }
     }
     db.prepare('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)').run(
       'schema_version',

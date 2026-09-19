@@ -119,6 +119,19 @@ export default {
     monthsAgo: 'hace {{n}} meses',
     yearsAgo: 'hace {{n}} años'
   },
+  downloads: {
+    title: 'Descargas',
+    ongoing: 'En curso',
+    finished: 'Completadas',
+    empty: 'Sin descargas',
+    emptyOngoing: 'Nada se está descargando ahora',
+    cancel: 'Cancelar',
+    clear: 'Limpiar',
+    done: 'Completada',
+    failed: 'Fallida',
+    kindRuntime: 'llama.cpp',
+    kindModel: 'Modelo'
+  },
   server: {
     title: 'Servidor y parámetros de arranque',
     desc: 'Parámetros dirigidos por schema; se aplican (re)arrancando el servidor',
@@ -127,6 +140,9 @@ export default {
     restart: 'Reiniciar servidor',
     needRuntime: 'Descarga llama.cpp primero en la página “Runtime”',
     needModel: 'Elige primero un archivo de modelo',
+    autoTune: 'Configurar automáticamente para mi hardware',
+    tuning: 'Calculando…',
+    autoTuneHint: 'Estima las capas GPU y el contexto según tu VRAM / RAM y los metadatos GGUF del modelo',
     state: {
       stopped: 'Detenido',
       starting: 'Arrancando',
@@ -276,6 +292,8 @@ export default {
     binarySub: 'Vacío = usar la build de la página “Runtime”',
     binaryPh: '(vacío = usar runtime descargado)',
     binaryHint: 'Para entornos offline o builds CUDA/Vulkan propias, indica la ruta completa de {{bin}}. Tiene prioridad sobre el runtime descargado.',
+    autoDownload: 'Descargar llama.cpp automáticamente al primer inicio',
+    autoDownloadHint: 'Si no hay runtime instalado, se obtiene la build recomendada para tu GPU al arrancar. Luego puedes elegir otra en la página “Runtime”.',
     language: 'Idioma',
     languageHint: 'Idioma de la interfaz. Con “Auto” sigue el idioma del sistema.',
     autoDetect: 'Auto (sistema)',

@@ -71,6 +71,35 @@ h1, h2, h3, p { margin: 0; }
 .titlebar-icon { width: 20px; height: 20px; flex: 0 0 auto; display: block; border-radius: 5px; }
 .window-identity span { overflow: hidden; font-size: 0.8rem; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .window-drag-space { min-width: 40px; flex: 1; }
+.titlebar-tools { display: flex; align-items: center; gap: 4px; padding-right: 6px; -webkit-app-region: no-drag; }
+/* 全局下载铃铛（右上角，参考 LM Studio Downloads 托盘） */
+.dl-bell-wrap { position: relative; }
+.dl-bell { position: relative; width: 34px; height: 30px; display: grid; place-items: center; color: var(--app-color-text-soft); border: 0; border-radius: 6px; background: transparent; cursor: pointer; transition: background 0.12s, color 0.12s; }
+.dl-bell:hover { color: var(--app-color-text); background: var(--app-muted-bg); }
+.dl-bell-badge { position: absolute; top: 3px; right: 4px; min-width: 15px; height: 15px; padding: 0 4px; border-radius: 8px; background: var(--app-color-primary); color: #fff; font-size: 0.6rem; font-weight: 700; display: grid; place-items: center; line-height: 1; }
+.dl-panel { position: absolute; top: 34px; right: 0; width: 360px; max-height: 440px; overflow-y: auto; display: grid; z-index: 300; background: var(--app-color-surface); border: 1px solid var(--app-color-border); border-radius: 10px; box-shadow: var(--app-shadow-panel); user-select: none; }
+.dl-panel-head { position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; background: var(--app-color-surface); border-bottom: 1px solid var(--app-color-border); }
+.dl-panel-head strong { font-size: 0.9rem; }
+.dl-panel-x { border: 0; background: transparent; color: var(--app-color-text-mute); font-size: 1.1rem; cursor: pointer; padding: 0 4px; }
+.dl-panel-x:hover { color: var(--app-color-text); }
+.dl-panel-section { padding: 8px 0; }
+.dl-panel-section + .dl-panel-section { border-top: 1px solid var(--app-color-border); }
+.dl-panel-label { display: flex; align-items: center; justify-content: space-between; padding: 2px 14px 6px; color: var(--app-color-text-mute); font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; }
+.dl-clear { border: 0; background: transparent; color: var(--app-color-text-mute); font-size: 0.7rem; cursor: pointer; text-transform: none; letter-spacing: 0; }
+.dl-clear:hover { color: var(--app-color-text); }
+.dl-panel-empty { padding: 10px 14px; color: var(--app-color-text-mute); font-size: 0.78rem; }
+.dl-item { padding: 8px 14px; display: grid; gap: 4px; }
+.dl-item + .dl-item { border-top: 1px solid var(--app-color-border); }
+.dl-item-top { display: flex; align-items: center; gap: 6px; }
+.dl-item-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 0.8rem; font-weight: 600; }
+.dl-item-detail { color: var(--app-color-text-mute); font-size: 0.68rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dl-item-cancel { border: 0; background: transparent; color: var(--app-color-text-mute); font-size: 0.95rem; cursor: pointer; padding: 0 3px; }
+.dl-item-cancel:hover { color: var(--app-color-danger); }
+.dl-item-done { color: var(--app-color-success); font-weight: 700; font-size: 0.85rem; }
+.dl-item-fail { color: var(--app-color-danger); font-weight: 700; font-size: 0.85rem; }
+.dl-item-meta { display: flex; justify-content: space-between; color: var(--app-color-text-mute); font-size: 0.7rem; }
+.dl-item-msg { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-color-danger); }
+.dl-item-kind { color: var(--app-color-text-mute); font-size: 0.62rem; text-transform: uppercase; letter-spacing: 0.05em; }
 .window-controls { display: flex; -webkit-app-region: no-drag; }
 .window-controls button { width: 46px; height: 39px; display: grid; place-items: center; padding: 0; color: var(--app-color-text-soft); border: 0; background: transparent; cursor: default; }
 .window-controls button:hover { color: var(--app-color-text); background: var(--app-muted-bg); }
@@ -110,6 +139,9 @@ h1, h2, h3, p { margin: 0; }
 .dot-ready { background: var(--app-color-success); }
 .dot-error { background: var(--app-color-danger); }
 @keyframes pulse { 50% { opacity: 0.4; } }
+
+/* 自动配置（VRAM/RAM 推演）操作条 */
+.tune-bar { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 8px 12px; border: 1px dashed var(--app-color-border-strong); border-radius: 7px; background: var(--app-muted-bg); font-size: 0.767rem; }
 
 /* ---------- 视图 ---------- */
 .main-area { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
