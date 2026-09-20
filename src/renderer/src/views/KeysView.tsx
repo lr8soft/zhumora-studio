@@ -14,7 +14,7 @@ function maskKey(key: string): string {
   return key.slice(0, 4) + '••••••••' + key.slice(-4)
 }
 
-export default function KeysView() {
+export default function KeysView({ bare }: { bare?: boolean } = {}) {
   const { t } = useTranslation()
   const keys = useAppStore((s) => s.keys)
   const serverState = useAppStore((s) => s.serverState)
@@ -72,13 +72,15 @@ export default function KeysView() {
   }
 
   return (
-    <div className="view">
-      <div className="view-header">
-        <div>
-          <h2>{t('keys.title')}</h2>
-          <p>{t('keys.desc')}</p>
+    <div className={bare ? 'api-bare' : 'view'}>
+      {!bare && (
+        <div className="view-header">
+          <div>
+            <h2>{t('keys.title')}</h2>
+            <p>{t('keys.desc')}</p>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="card">
         <div className="card-head">

@@ -86,6 +86,10 @@ interface SettingsSlice {
   setParamDraft: (p: LaunchParams) => void
   paramDirty: boolean
   setParamDirty: (d: boolean) => void
+  /** 启动动作进行中的标记（launchModel 内部防重入） */
+  launching: boolean
+  /** 选模型 → 自动调参（尊重用户已改的值）→ 启动，一个动作 */
+  launchModel: (path: string) => Promise<void>
 }
 
 interface AppStore extends ServerSlice, ModelsSlice, DownloadsSlice, ChatSlice, KeysSlice, SettingsSlice {
@@ -182,6 +186,39 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setParamDraft: (paramDraft) => set({ paramDraft }),
   paramDirty: false,
   setParamDirty: (paramDirty) => set({ paramDirty }),
+  launching: false,
+  launchModel: async (path: string) => {
+    const st = get()
+    if (st.launching) return
+    set({ launching: true })
+    try {
+      // 1. 指定当前模型
+      set({ paramDraft: { ...st.paramDraft, modelPath: path } })
+      // 2. 默认自动调参（autoTuner 只覆盖用户没改过的默认值；用户手动拉过的不动）
+      let draft: LaunchParams = { ...get().paramDraft }
+      try {
+        const res = await window.zhumora.server.suggestParams(path, draft)
+        draft = { ...draft, ...res.patch }
+      } catch {
+        // 推演失败不阻塞启动（用现有参数）
+      }
+      set({ paramDraft: draft, paramDirty: true })
+      // 3. 启动（运行中先停旧实例：ServerManager 拒绝重复 start，
+      //    保证"换模型 = 一键切换"而不报错）
+      const cur = get().serverState.state
+      if (cur === 'ready' || cur === 'stopping' || cur === 'error') {
+        await window.zhumora.server.stop()
+      }
+      await window.zhumora.server.start(draft)
+      set({ paramDirty: false })
+      // main 启动成功时已把 lastParams 落盘：重拉 settings，
+      // 否则"参数已修改需重启"判定（dock 的 stale）会误报
+      const next = await window.zhumora.settings.get()
+      set({ settings: next })
+    } finally {
+      set({ launching: false })
+    }
+  },
 
   // actions
   init: async () => {

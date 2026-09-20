@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { useAppStore } from '../store'
 import { useTranslation } from 'react-i18next'
+import type { ViewId } from '../components/Sidebar'
 import type { ChatMessage, ChatRole } from '@shared/types'
 
-export default function ChatView() {
+export default function ChatView({ onNavigate }: { onNavigate?: (v: ViewId) => void } = {}) {
   const { t } = useTranslation()
   const sessions = useAppStore((s) => s.sessions)
   const activeSessionId = useAppStore((s) => s.activeSessionId)
@@ -11,6 +12,7 @@ export default function ChatView() {
   const streaming = useAppStore((s) => s.streaming)
   const models = useAppStore((s) => s.models)
   const serverState = useAppStore((s) => s.serverState)
+  const paramDraft = useAppStore((s) => s.paramDraft)
   const [input, setInput] = useState('')
   const [sysPrompt, setSysPrompt] = useState('')
   const [showAdv, setShowAdv] = useState(false)
@@ -132,11 +134,19 @@ export default function ChatView() {
       <div className="chat-main">
         <div className="chat-toolbar">
           <span style={{ fontSize: '0.8rem', color: 'var(--app-color-text-soft)' }}>{t('server.model')}</span>
-          <select value={active?.modelId ?? ''} onChange={() => {}}>
-            <option value="">{serverState.modelPath ? serverState.modelPath.split(/[\\/]/).pop() : t('chat.noServer')}</option>
-          </select>
+          <span className="chat-model-name mono">
+            {(serverState.modelPath || (paramDraft.modelPath as string))
+              ? (serverState.modelPath || (paramDraft.modelPath as string)).split(/[\\/]/).pop()
+              : t('chat.noModelYet')}
+          </span>
           <span className="spacer" style={{ flex: 1 }} />
-          {!serverReady && (
+          {serverState.state === 'starting' && (
+            <span className="badge badge-starting">
+              <span className="dot dot-starting" style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block' }} />
+              {t('chat.loading')}
+            </span>
+          )}
+          {!serverReady && serverState.state !== 'starting' && (
             <span className="badge badge-stopped">
               {serverState.state === 'error' ? t('chat.serverError') : t('chat.serverOff')} — {t('chat.goStart')}
             </span>
@@ -145,7 +155,45 @@ export default function ChatView() {
         </div>
 
         <div className="chat-messages" ref={boxRef}>
-          {!activeSessionId ? (
+          {!serverReady ? (
+            <div className="empty-state">
+              <div className="chat-guide">
+                <div className="mark" style={{ fontSize: '2.4rem', marginBottom: 10, opacity: 0.5 }}>
+                  🚀
+                </div>
+                <strong style={{ fontSize: '1rem' }}>{t('chat.guideTitle')}</strong>
+                <div className="chat-guide-steps">
+                  <div className="chat-guide-step">
+                    <span className="chat-guide-idx">{serverState.state === 'starting' ? '…' : '1'}</span>
+                    <div>
+                      <div>{t('chat.guideStep1')}</div>
+                      {paramDraft.modelPath ? (
+                        <span className="hint">
+                          {(paramDraft.modelPath as string).split(/[\\/]/).pop()}
+                          {serverState.state === 'starting' ? ` — ${t('chat.loading')}` : ''}
+                        </span>
+                      ) : (
+                        <button className="btn btn-sm btn-primary" style={{ marginTop: 6 }} onClick={() => onNavigate?.('models')}>
+                          {t('chat.guidePick')}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <div className="chat-guide-step">
+                    <span className="chat-guide-idx">{serverState.state === 'starting' ? '…' : '2'}</span>
+                    <div>
+                      <div>{t('chat.guideStep2')}</div>
+                      <span className="hint">{t('chat.guideStep2Hint')}</span>
+                    </div>
+                  </div>
+                  <div className="chat-guide-step">
+                    <span className="chat-guide-idx">3</span>
+                    <div>{t('chat.guideStep3')}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : !activeSessionId ? (
             <div className="empty-state">
               <div>
                 <div className="mark">💬</div>

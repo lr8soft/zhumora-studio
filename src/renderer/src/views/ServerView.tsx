@@ -3,66 +3,34 @@ import { useAppStore } from '../store'
 import ParamForm from '../components/ParamForm'
 import { useTranslation } from 'react-i18next'
 import type { LaunchParams } from '@shared/types'
-import { buildArgs } from '@shared/buildArgs'
 
+/**
+ * 服务与启动参数（次级视图）。
+ * 启停与当前模型已上移顶部"模型坞"；本页专注参数表单与 server 错误/日志入口。
+ */
 export default function ServerView() {
   const { t } = useTranslation()
   const serverState = useAppStore((s) => s.serverState)
   const models = useAppStore((s) => s.models)
   const mmprojs = models.filter((m) => m.kind === 'mmproj')
-  const runtime = useAppStore((s) => s.runtime)
   const paramDraft = useAppStore((s) => s.paramDraft)
   const setParamDraft = useAppStore((s) => s.setParamDraft)
   const setParamDirty = useAppStore((s) => s.setParamDirty)
   const settings = useAppStore((s) => s.settings)
   const keys = useAppStore((s) => s.keys)
   const [toast, setToast] = useState<string | null>(null)
+  const [tuneNote, setTuneNote] = useState('')
 
   const running = serverState.state === 'starting' || serverState.state === 'ready'
-  // 可启动条件：runtime 已就绪，或已手动指定 llama-server（自定义二进制路径）
-  const binaryReady = runtime.state === 'ready' || Boolean(settings?.llamaBinary)
-  const stale =
-    serverState.state === 'ready' &&
-    JSON.stringify(buildArgs(paramDraft)) !== JSON.stringify(buildArgs(settings?.lastParams ?? paramDraft))
-  // 密钥变更需重启（与上次启动参数中的 key 集合比较）
-  const lastKeys = String((settings?.lastParams as LaunchParams | undefined)?.apiKey ?? '')
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .sort()
-    .join(',')
-  const keysStale =
-    serverState.state === 'ready' && keys.map((k) => k.key).sort().join(',') !== lastKeys
 
   const showToast = (msg: string) => {
     setToast(msg)
     setTimeout(() => setToast(null), 2500)
   }
 
-  const start = async () => {
-    try {
-      await window.zhumora.server.start(paramDraft)
-      setParamDirty(false)
-    } catch (e) {
-      showToast((e as Error).message)
-    }
-  }
-
-  const stop = async () => {
-    try {
-      await window.zhumora.server.stop()
-    } catch (e) {
-      showToast((e as Error).message)
-    }
-  }
-
-  const pickModelFile = async () => {
-    const p = await window.zhumora.system.pickModel()
-    if (p) {
-      setParamDraft({ ...paramDraft, modelPath: p })
-      setParamDirty(true)
-      useAppStore.getState().loadModels()
-    }
+  const setParam = (key: keyof LaunchParams, v: LaunchParams[string]) => {
+    setParamDraft({ ...paramDraft, [key]: v })
+    setParamDirty(true)
   }
 
   const pickMmprojFile = async () => {
@@ -73,26 +41,18 @@ export default function ServerView() {
     }
   }
 
-  const setParam = (key: keyof LaunchParams, v: LaunchParams[string]) => {
-    setParamDraft({ ...paramDraft, [key]: v })
-    setParamDirty(true)
-  }
-
   const modelChoices = models.filter((m) => m.kind === 'model')
 
-  const endpoint = serverState.host ? `http://${serverState.host}:${serverState.port}/v1` : ''
-
-  // 自动配置：按本机 VRAM/RAM + 模型 GGUF 元数据推演 nGpuLayers / ctxSize 等
+  // 自动配置：按本机 VRAM/RAM + 模型 GGUF 元数据推演 nGpuLayers / ctxSize 等。
+  // 默认调参由选模型/启动链路自动触发（store.launchModel）；这里是手动重算入口。
   const [tuning, setTuning] = useState(false)
-  const [tuneNote, setTuneNote] = useState('')
   const applyTune = async () => {
     if (!paramDraft.modelPath) return
     setTuning(true)
     setTuneNote('')
     try {
       const res = await window.zhumora.server.suggestParams(String(paramDraft.modelPath), paramDraft)
-      const draft = { ...paramDraft, ...res.patch }
-      setParamDraft(draft)
+      setParamDraft({ ...paramDraft, ...res.patch })
       setParamDirty(true)
       if (res.reason) {
         setTuneNote(res.reason)
@@ -112,105 +72,43 @@ export default function ServerView() {
           <h2>{t('server.title')}</h2>
           <p>{t('server.desc')}</p>
         </div>
-        <div className="header-actions">
-          {running ? (
-            <button className="btn btn-danger" onClick={() => void stop()}>
-              {t('server.stop')}
-            </button>
-          ) : (
-            <button
-              className="btn btn-primary"
-              onClick={() => void start()}
-              disabled={!binaryReady || !paramDraft.modelPath}
-              title={
-                !binaryReady
-                  ? t('server.needRuntime')
-                  : !paramDraft.modelPath
-                    ? t('server.needModel')
-                    : undefined
-              }
-            >
-              {serverState.state === 'error' ? t('server.restart') : t('server.start')}
-            </button>
-          )}
-        </div>
       </div>
 
-      {/* 状态卡 */}
-      <div className="card">
-        <div className="status-hero">
-          <div className="big">
-            <span
-              className={`dot ${
-                serverState.state === 'ready'
-                  ? 'dot-ready'
-                  : serverState.state === 'starting'
-                    ? 'dot-starting'
-                    : serverState.state === 'error'
-                      ? 'dot-error'
-                      : 'dot-stopped'
-              }`}
-            />
-            <span className={`badge badge-${serverState.state}`}>
-              {t(`server.state.${serverState.state}`)}
-            </span>
-          </div>
-          <div className="meta">
-            {serverState.state === 'ready' ? (
-              <>
-                <span>
-                  {t('server.endpoint')} <span className="mono">{endpoint}</span>
-                </span>
-                {serverState.modelPath && (
-                  <span>
-                    {t('server.model')}{' '}
-                    <span className="mono" style={{ wordBreak: 'break-all' }}>{serverState.modelPath}</span>
-                  </span>
-                )}
-                {stale && <span style={{ color: 'var(--app-color-warn)' }}>{t('server.stale')}</span>}
-                {keysStale && <span style={{ color: 'var(--app-color-warn)' }}>{t('server.keysStale')}</span>}
-              </>
-            ) : serverState.state === 'starting' ? (
-              <span>{t('server.startingWait')}</span>
-            ) : (
-              <span>
-                {t('server.binary')}{' '}
-                <span className="mono" style={{ wordBreak: 'break-all' }}>
-                  {settings?.llamaBinary || runtime.binaryPath || t('server.noBinary')}
-                </span>
-              </span>
-            )}
-          </div>
-          <div style={{ display: 'grid', gap: 6, justifyContent: 'end' }}>
-            {serverState.state === 'ready' && (
-              <button
-                className="btn btn-sm"
-                onClick={() => {
-                  void navigator.clipboard.writeText(endpoint)
-                  showToast(t('server.copied'))
-                }}
-              >
-                {t('server.copyEndpoint')}
-              </button>
-            )}
-            <span className={`badge ${keys.length > 0 ? 'badge-info' : 'badge-stopped'}`}>
-              {keys.length > 0
-                ? t('server.keysCount', { n: String(keys.length) })
-                : t('server.keysNone')}
-            </span>
-          </div>
+      {/* 运行中改参需重启的提示（按钮在模型坞） */}
+      {running && (
+        <div className="tune-bar" style={{ marginBottom: 14 }}>
+          <span>
+            {serverState.state === 'starting' ? t('server.startingWait') : t('server.paramsLive')}
+          </span>
+          <span className="spacer" style={{ flex: 1 }} />
+          <span className={`badge ${keys.length > 0 ? 'badge-info' : 'badge-stopped'}`}>
+            {keys.length > 0
+              ? t('server.keysCount', { n: String(keys.length) })
+              : t('server.keysNone')}
+          </span>
         </div>
-        {serverState.error && <div className="status-error" style={{ margin: '0 20px 16px' }}>{serverState.error}</div>}
-      </div>
+      )}
+
+      {serverState.error && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <div className="status-hero">
+            <div className="big">
+              <span className="dot dot-error" />
+              <span className="badge badge-error">{t(`server.state.${serverState.state}`)}</span>
+            </div>
+            <div className="meta">
+              <span>{t('server.errorWhere')}</span>
+            </div>
+          </div>
+          <div className="status-error" style={{ margin: '0 20px 16px' }}>{serverState.error}</div>
+        </div>
+      )}
 
       {/* 参数表单 */}
-      <div className="card" style={{ marginTop: 14 }}>
+      <div className="card">
         <div className="card-head">
           <h3>
             {t('server.params')}
-            <span className="sub">
-              {buildArgs(paramDraft).length > 0 ? t('server.flags', { n: String(buildArgs(paramDraft).length) }) : ''}
-            </span>
           </h3>
           {paramDraft.modelPath ? (
             <span className="badge badge-ready" style={{ maxWidth: 420, overflow: 'hidden' }}>
@@ -221,7 +119,22 @@ export default function ServerView() {
           )}
         </div>
         <div className="card-body">
-          {/* 模型文件特判：-m 与 --mmproj 同组（模型设定） */}
+          {/* 自动配置条：置顶，手动重算入口 */}
+          {paramDraft.modelPath && (
+            <div className="tune-bar" style={{ marginBottom: 14 }}>
+              <button className="btn btn-sm" onClick={() => void applyTune()} disabled={tuning}>
+                {tuning ? t('server.tuning') : t('server.autoTune')}
+              </button>
+              <span className="hint" style={{ margin: 0 }}>
+                {t('server.autoTuneHint')}
+              </span>
+              {tuneNote && (
+                <span style={{ color: 'var(--app-color-success)', fontSize: '0.767rem' }}>✓ {tuneNote}</span>
+              )}
+            </div>
+          )}
+
+          {/* 模型文件（-m 主模型 + --mmproj 投影） */}
           <div className="form-section" style={{ marginTop: 0 }}>
             <div className="form-section-title">
               {t('server.modelFiles')}
@@ -244,24 +157,9 @@ export default function ServerView() {
                     </option>
                   ))}
                 </select>
-                <button className="btn" onClick={() => void pickModelFile()}>
-                  {t('server.browse')}
-                </button>
               </div>
+              <div className="hint">{t('server.dockHint')}</div>
             </div>
-            {paramDraft.modelPath && (
-              <div className="tune-bar" style={{ marginBottom: 12 }}>
-                <button className="btn btn-sm" onClick={() => void applyTune()} disabled={running || tuning}>
-                  {tuning ? t('server.tuning') : t('server.autoTune')}
-                </button>
-                <span className="hint" style={{ margin: 0 }}>
-                  {t('server.autoTuneHint')}
-                </span>
-                {tuneNote && (
-                  <span style={{ color: 'var(--app-color-success)', fontSize: '0.767rem' }}>✓ {tuneNote}</span>
-                )}
-              </div>
-            )}
             <div className="field">
               <label>{t('server.mmproj')}</label>
               <div className="pick">

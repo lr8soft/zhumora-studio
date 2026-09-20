@@ -17,7 +17,7 @@ function fmtDate(ms: number): string {
 /** key 选择值：'__all__' = 全部；'' = 本地/无 key；其他 = 实际 key */
 const ALL = '__all__'
 
-export default function UsageView() {
+export default function UsageView({ bare }: { bare?: boolean } = {}) {
   const { t } = useTranslation()
   const [summary, setSummary] = useState<UsageSummary | null>(null)
   const [daily, setDaily] = useState<UsageDaily[]>([])
@@ -74,15 +74,16 @@ export default function UsageView() {
   const keyLabel = (k: UsageByKey) => (k.key ? (k.name ? `${k.name} · ${maskKey(k.key)}` : maskKey(k.key)) : t('usage.local'))
 
   return (
-    <div className="view">
-      <div className="view-header">
-        <div>
-          <h2>{t('usage.title')}</h2>
-          <p>{t('usage.desc')}</p>
-        </div>
-        <div className="header-actions">
-          {/* 按 API key 筛选 */}
-          <select
+    <div className={bare ? 'api-bare' : 'view'}>
+      {!bare && (
+        <div className="view-header">
+          <div>
+            <h2>{t('usage.title')}</h2>
+            <p>{t('usage.desc')}</p>
+          </div>
+          <div className="header-actions">
+            {/* 按 API key 筛选 */}
+            <select
             className="field-input"
             style={{ width: 260, flex: 'none' }}
             value={selected}
@@ -99,14 +100,15 @@ export default function UsageView() {
                 </option>
               ))}
           </select>
-          <button className="btn btn-ghost" onClick={() => void load(selected)}>
-            ↻
-          </button>
-          <button className="btn btn-danger" onClick={() => void reset()} disabled={!summary || summary.requests === 0}>
-            {t('usage.reset')}
-          </button>
+            <button className="btn btn-ghost" onClick={() => void load(selected)}>
+              ↻
+            </button>
+            <button className="btn btn-danger" onClick={() => void reset()} disabled={!summary || summary.requests === 0}>
+              {t('usage.reset')}
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* 汇总卡 */}
       <div className="grid-4">

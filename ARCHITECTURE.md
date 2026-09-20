@@ -70,22 +70,25 @@ zhumora-studio/
     │   └── index.ts                # contextBridge 暴露 window.zhumora（ZhumoraApi，不暴露通用 ipcRenderer）
     └── renderer/
         └── src/
-            ├── main.tsx / App.tsx  # 框架：TitleBar + Sidebar + 8 视图路由；主题/字号应用
+            ├── main.tsx / App.tsx  # 框架：TitleBar + Sidebar + 模型坞（ModelDock）+ 视图路由；首启引导门控；主题/字号应用
             ├── index.css           # 设计令牌 + 组件样式
-            ├── store/index.ts      # zustand 单 store（server/models/chat/keys/settings slice）+ subscribeMainEvents
+            ├── store/index.ts      # zustand 单 store（server/models/chat/keys/settings slice）+ subscribeMainEvents + launchModel（选模型→自动调参→启动）
             ├── i18n/               # i18next 初始化 + 6 语言包（en/zh/ja/es/fr/de）
             ├── views/
-            │   ├── RuntimeView.tsx   # 运行时：探测结果、变体选择、下载进度
-            │   ├── ModelsView.tsx    # 模型库：本地列表 + HF 搜索/下载
-            │   ├── ServerView.tsx    # ★ 服务面板：状态卡 + 启动参数表单 + 日志
+            │   ├── ChatView.tsx      # 聊天：会话、流式渲染、usage/tokens-s（默认落地页；服务未就绪时显示三步引导卡）
+            │   ├── ModelsView.tsx    # 模型：本地列表（行内"启动"= 选模型+自动调参+启动）/ 广场（HF 搜索/下载，热门默认）
+            │   ├── ApiView.tsx       # API 服务：端点+示例 / 密钥 / 用量（后两者内嵌 bare 模式）
+            │   ├── ServerView.tsx    # 启动参数表单（schema 驱动）+ 自动配置条；启停已上移模型坞
             │   ├── StatusView.tsx    # 运行状态：进程/系统 CPU、内存、GPU（2s 轮询）
-            │   ├── ChatView.tsx      # 聊天：会话、流式渲染、usage/tokens-s
-            │   ├── KeysView.tsx      # 密钥管理：增删 + 随机生成
-            │   ├── UsageView.tsx     # 用量统计：总览/按天/按模型/按 key/调用记录
-            │   └── SettingsView.tsx  # 模型目录、自定义二进制、主题、语言
+            │   ├── OnboardingView.tsx# 首启引导（onboarded=false 时全屏）：runtime 进度 + 本地模型一键启动 + 热门模型 + 跳过
+            │   ├── RuntimeView.tsx   # 运行时：探测结果、变体选择、下载进度（首启自动下载，此页仅作管理/兜底）
+            │   ├── KeysView.tsx      # 密钥管理（bare 可嵌入 ApiView）
+            │   ├── UsageView.tsx     # 用量统计（bare 可嵌入 ApiView）
+            │   └── SettingsView.tsx  # 模型目录、自定义二进制、界面模式（simple/full）、主题、语言
             └── components/
-                ├── TitleBar.tsx / Sidebar.tsx
-                └── ParamForm.tsx     # ★ 由 launchParams.ts schema 动态生成表单
+                ├── TitleBar.tsx / Sidebar.tsx  # 侧栏：simple = 聊天/模型/设置 + "更多"菜单；full = 全量导航
+                ├── ModelDock.tsx               # ★ 全局模型坞：当前模型 + 启动/停止/重启 + 端点复制
+                └── ParamForm.tsx               # ★ 由 launchParams.ts schema 动态生成表单
 ```
 
 依赖方向：`shared ← main/renderer 均可用；ipc handlers 不实现业务；composition.ts 是唯一组合根`。

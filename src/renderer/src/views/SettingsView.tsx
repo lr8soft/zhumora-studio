@@ -158,6 +158,22 @@ export default function SettingsView() {
         <div className="card-body">
           <div className="form-row">
             <div className="field">
+              <label>{t('settings.uiMode')}</label>
+              <select
+                value={String(val('uiMode'))}
+                onChange={(e) =>
+                  setDraft((d) => ({
+                    ...d,
+                    uiMode: e.target.value as Settings['uiMode']
+                  }))
+                }
+              >
+                <option value="simple">{t('settings.uiModeSimple')}</option>
+                <option value="full">{t('settings.uiModeFull')}</option>
+              </select>
+              <div className="hint">{t('settings.uiModeHint')}</div>
+            </div>
+            <div className="field">
               <label>{t('settings.theme')}</label>
               <select
                 value={String(val('theme'))}

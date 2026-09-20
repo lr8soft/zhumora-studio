@@ -106,12 +106,14 @@ h1, h2, h3, p { margin: 0; }
 .window-controls .window-close:hover { color: #fff; background: #c42b1c; }
 
 .app-shell { --sidebar-width: 208px; min-height: 0; display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); overflow: hidden; }
+.app-body { --sidebar-width: 208px; min-height: 0; display: grid; grid-template-columns: var(--sidebar-width) minmax(0, 1fr); overflow: hidden; }
+.main-col { display: grid; grid-template-rows: auto minmax(0, 1fr); min-width: 0; min-height: 0; overflow: hidden; }
 .sidebar { position: relative; min-height: 0; display: flex; flex-direction: column; padding: 14px 12px 12px; border-right: 1px solid var(--app-color-border); background: var(--app-chrome-bg); }
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 14px; }
 .brand-mark { width: 32px; height: 32px; flex: 0 0 auto; border-radius: 8px; background: var(--app-color-primary); display: grid; place-items: center; color: #fff; font-weight: 700; font-size: 1rem; }
 .brand strong { font-size: 1rem; font-weight: 650; }
 .brand small { display: block; color: var(--app-color-text-mute); font-size: 0.7rem; font-weight: 400; }
-.side-nav { display: grid; gap: 2px; }
+.side-nav { display: grid; gap: 2px; min-height: 0; overflow-y: auto; }
 .side-nav button {
   min-height: 38px; display: flex; align-items: center; gap: 10px;
   padding: 8px 10px; color: var(--app-color-text-soft); border: 0; border-radius: 6px;
@@ -244,6 +246,7 @@ details.advanced[open] summary { margin-bottom: 12px; }
 .table tr:hover td { background: var(--app-muted-bg); }
 .mono { font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.767rem; }
 .cell-actions { display: flex; gap: 4px; justify-content: flex-end; }
+.cell-actions .btn { white-space: nowrap; }
 
 /* ---------- 徽标 ---------- */
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 2px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 650; }
@@ -425,3 +428,115 @@ details.advanced[open] summary { margin-bottom: 12px; }
 .readme-li { display: flex; gap: 8px; padding-left: 2px; }
 .readme-bullet { width: 5px; height: 5px; border-radius: 50%; background: var(--app-color-text-mute); margin-top: 9px; flex: 0 0 auto; }
 .readme-code { background: #10141a; color: #c9d4de; border-radius: 7px; padding: 10px 12px; font-family: 'Cascadia Code', Consolas, monospace; font-size: 0.733rem; line-height: 1.5; overflow-x: auto; white-space: pre; margin: 0; }
+
+/* ============================================================
+   全局模型坞（吸顶：当前模型 + 启停 + 端点）
+   ============================================================ */
+.model-dock {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 10px 18px; min-height: 58px;
+  border-bottom: 1px solid var(--app-color-border); background: var(--app-chrome-bg);
+}
+.model-dock .dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
+.dock-model {
+  max-width: 320px; min-width: 140px; min-height: 34px; padding: 5px 10px;
+  border: 1px solid var(--app-color-border); border-radius: 6px;
+  background: var(--app-color-surface); color: var(--app-color-text); font-size: 0.833rem; font-weight: 600;
+}
+.dock-model:disabled { opacity: 0.6; }
+.dock-spacer { flex: 1; }
+.dock-endpoint {
+  display: inline-flex; align-items: center; gap: 7px; max-width: 340px;
+  padding: 6px 10px; border: 1px solid var(--app-color-border); border-radius: 6px;
+  background: var(--app-color-surface); color: var(--app-color-text-soft);
+  font-size: 0.75rem; cursor: pointer; transition: border-color 0.12s;
+}
+.dock-endpoint:hover { border-color: var(--app-color-primary); }
+.dock-endpoint .mono { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dock-copy { color: var(--app-color-text-mute); flex: 0 0 auto; }
+.dock-badge-btn { border: 0; cursor: pointer; }
+.dock-action { min-width: 108px; }
+.dock-error { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--app-color-danger); font-size: 0.733rem; }
+
+/* ============================================================
+   侧栏"更多"菜单（简洁模式）
+   ============================================================ */
+/* 外层不在滚动容器内，避免弹出面板被 .side-nav 的 overflow 裁掉 */
+.side-more-wrap { margin-top: 12px; flex: 0 0 auto; }
+.side-more { position: relative; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--app-color-border); }
+.side-more > button {
+  min-height: 38px; width: 100%; display: flex; align-items: center; gap: 10px;
+  padding: 8px 10px; color: var(--app-color-text-soft); border: 0; border-radius: 6px;
+  background: transparent; cursor: pointer; text-align: left; font-size: 0.867rem; font-weight: 550;
+}
+.side-more > button:hover { background: var(--app-muted-bg); color: var(--app-color-text); }
+.side-more > button.active { background: var(--app-active-bg); color: var(--app-color-primary-strong); font-weight: 650; }
+.side-more-backdrop { position: fixed; inset: 0; z-index: 90; }
+.side-more-panel {
+  position: absolute; top: 44px; left: 8px; right: 8px; z-index: 95;
+  display: grid; gap: 2px; padding: 6px;
+  background: var(--app-color-surface); border: 1px solid var(--app-color-border);
+  border-radius: 8px; box-shadow: var(--app-shadow-panel);
+}
+.side-more-panel button {
+  min-height: 34px; padding: 6px 12px; border: 0; border-radius: 6px; background: transparent;
+  color: var(--app-color-text-soft); font-size: 0.833rem; cursor: pointer; text-align: left;
+}
+.side-more-panel button:hover { background: var(--app-muted-bg); color: var(--app-color-text); }
+.side-more-panel button.active { background: var(--app-active-bg); color: var(--app-color-primary-strong); font-weight: 650; }
+
+/* ============================================================
+   API 服务页（端点 / 密钥 / 用量 合并）
+   ============================================================ */
+.api-view { display: flex; flex-direction: column; min-height: 0; }
+.api-tabs { align-items: center; }
+.api-embed { flex: 1; min-height: 0; overflow-y: auto; }
+.api-bare { display: grid; gap: 14px; }
+.api-bare > .card { margin-top: 0; }
+.api-bare .view-header { display: none; }
+
+/* 模型页 tab 切换 */
+.models-tabs { align-items: center; }
+.models-tabs .tab-sep { width: 1px; height: 18px; background: var(--app-color-border-strong); margin: 0 2px; }
+
+/* ============================================================
+   首启引导（Onboarding）
+   ============================================================ */
+.onboard { flex: 1; min-height: 0; overflow-y: auto; display: grid; place-items: start center; background: var(--app-color-bg); padding: 48px 24px; }
+.onboard-inner { width: 100%; max-width: 660px; display: grid; gap: 14px; }
+.onboard-head { display: flex; align-items: center; gap: 14px; padding: 8px 4px 4px; }
+.onboard-head h1 { font-size: 1.35rem; font-weight: 750; }
+.onboard-head p { color: var(--app-color-text-mute); font-size: 0.85rem; margin-top: 4px; }
+.onboard-step { margin-top: 0; }
+.onboard-step-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px; border-bottom: 1px solid var(--app-color-border); font-size: 0.95rem; }
+.onboard-step-head .dot { width: 9px; height: 9px; border-radius: 50%; margin-left: auto; }
+.onboard-step-idx {
+  width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+  background: var(--app-color-primary); color: #fff; font-size: 0.8rem; font-weight: 700;
+}
+.onboard-sub { font-size: 0.75rem; font-weight: 700; color: var(--app-color-text-mute); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 8px; }
+.onboard-model-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--app-color-border); border-radius: 8px; background: var(--app-color-surface);
+}
+.onboard-trending { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.onboard-tcard {
+  display: grid; gap: 4px; padding: 10px 12px; text-align: left;
+  border: 1px solid var(--app-color-border); border-radius: 8px; background: var(--app-color-surface); cursor: pointer;
+  transition: border-color 0.12s, background 0.12s;
+}
+.onboard-tcard:hover { border-color: var(--app-color-primary); background: var(--app-color-primary-soft); }
+.onboard-tname { font-weight: 650; font-size: 0.867rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.onboard-actions { display: flex; align-items: center; gap: 10px; padding: 6px 4px 20px; }
+
+/* ============================================================
+   聊天页：服务未就绪时的引导卡
+   ============================================================ */
+.chat-guide { max-width: 420px; display: grid; gap: 12px; justify-items: start; text-align: left; }
+.chat-guide-steps { display: grid; gap: 10px; width: 100%; }
+.chat-guide-step { display: flex; gap: 10px; align-items: flex-start; }
+.chat-guide-idx {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; flex: 0 0 auto;
+  background: var(--app-muted-bg); color: var(--app-color-text-soft); font-size: 0.733rem; font-weight: 700;
+}
+.chat-model-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 340px; color: var(--app-color-text); }

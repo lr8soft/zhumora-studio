@@ -213,18 +213,34 @@ function DownloadRow({
 }
 
 // ---------- 主视图 ----------
-export default function ModelsView() {
+export default function ModelsView({ focusModelId }: { focusModelId?: string | null } = {}) {
   const { t } = useTranslation()
   const models = useAppStore((s) => s.models)
   const downloads = useAppStore((s) => s.downloads)
   const loadModels = useAppStore((s) => s.loadModels)
   const settings = useAppStore((s) => s.settings)
 
+  // 默认 tab：本地库有模型 → 本地；库为空（新手）→ 广场热门。
+  // 挂载时 models 可能尚未载入：首次载入后自动对齐（用户手动切过则不干预）
+  const [tab, setTab] = useState<'local' | 'market'>('market')
+  const [tabTouched, setTabTouched] = useState(false)
+  const pickTab = (x: 'local' | 'market') => {
+    setTabTouched(true)
+    setTab(x)
+  }
+  useEffect(() => {
+    if (!tabTouched && models.some((m) => m.kind === 'model')) setTab('local')
+  }, [models, tabTouched])
   const [query, setQuery] = useState('')
   const [sort, setSort] = useState<HfSort>('best')
   const [results, setResults] = useState<HfModel[]>([])
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState('')
+
+  // 启动链路（选模型 → 自动调参 → 启动）
+  const serverState = useAppStore((s) => s.serverState)
+  const launching = useAppStore((s) => s.launching)
+  const launchModel = useAppStore((s) => s.launchModel)
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [detail, setDetail] = useState<HfModelDetail | null>(null)
@@ -269,6 +285,20 @@ export default function ModelsView() {
     void runSearch('', 'best')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // 外部定位（如首启引导点热门卡）：进广场 tab 并打开该模型详情
+  useEffect(() => {
+    if (!focusModelId) return
+    pickTab('market')
+    void openModel({
+      id: focusModelId,
+      downloads: 0,
+      likes: 0,
+      tags: [],
+      capabilities: { vision: false, tool: false, reasoning: false }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusModelId])
 
   // 结果更新后预取作者头像（最多 10 个；主进程带缓存+并发限制，取不到为 null → 回退首字母）
   useEffect(() => {
@@ -318,7 +348,14 @@ export default function ModelsView() {
           <h2>{t('models.title')}</h2>
           <p>{t('models.desc')}</p>
         </div>
-        <div className="header-actions">
+        <div className="header-actions models-tabs">
+          <button className={`btn btn-sm ${tab === 'local' ? 'btn-primary' : ''}`} onClick={() => pickTab('local')}>
+            {t('models.tabLocal')}
+          </button>
+          <button className={`btn btn-sm ${tab === 'market' ? 'btn-primary' : ''}`} onClick={() => pickTab('market')}>
+            {t('models.tabMarket')}
+          </button>
+          <span className="tab-sep" />
           <button className="btn" onClick={() => void importModel()}>
             {t('models.import')}
           </button>
@@ -328,8 +365,9 @@ export default function ModelsView() {
         </div>
       </div>
 
-      {/* 双栏市场 */}
-      <div className="market">
+      {tab === 'market' && (
+      /* 双栏市场 */
+      <div className="market" style={{ marginTop: 0 }}>
         {/* 左：搜索 + 列表 */}
         <div className="card market-list">
           <div className="market-search">
@@ -575,8 +613,10 @@ export default function ModelsView() {
           )}
         </div>
       </div>
+      )}
 
-      {/* 本地模型 */}
+      {tab === 'local' && (
+      /* 本地模型 */
       <div className="card" style={{ marginTop: 14 }}>
         <div className="card-head">
           <h3>
@@ -605,16 +645,18 @@ export default function ModelsView() {
                 <th>{t('models.thArch')}</th>
                 <th>{t('models.thQuant')}</th>
                 <th>{t('models.thSize')}</th>
-                <th style={{ width: 70 }}></th>
+                <th style={{ width: 116 }}></th>
               </tr>
             </thead>
             <tbody>
               {models.map((m) => {
                 const ext = isExternal(m)
+                const isCurrent = serverState.state !== 'stopped' && serverState.modelPath === m.path
                 return (
-                  <tr key={m.id}>
+                  <tr key={m.id} style={isCurrent ? { background: 'var(--app-active-bg)' } : undefined}>
                     <td style={{ fontWeight: 600, wordBreak: 'break-all' }}>
                       {m.name}
+                      {isCurrent && <span className="badge badge-ready" style={{ marginLeft: 8 }}>{t('models.current')}</span>}
                       {ext && <span className="badge badge-info" style={{ marginLeft: 8 }}>{t('models.external')}</span>}
                     </td>
                     <td>
@@ -641,6 +683,20 @@ export default function ModelsView() {
                     </td>
                     <td>
                       <div className="cell-actions">
+                        {m.kind === 'model' && (
+                          <button
+                            className="btn btn-sm btn-primary"
+                            disabled={launching || (serverState.state === 'ready' && isCurrent)}
+                            onClick={() => void launchModel(m.path)}
+                            title={t('models.launchHint')}
+                          >
+                            {serverState.state === 'ready' && isCurrent
+                              ? t('models.running')
+                              : launching
+                                ? t('dock.launching')
+                                : t('models.launch')}
+                          </button>
+                        )}
                         <button className="btn btn-sm btn-danger" onClick={() => void removeModel(m)}>
                           {ext ? t('models.unlink') : t('models.delete')}
                         </button>
@@ -653,6 +709,7 @@ export default function ModelsView() {
           </table>
         )}
       </div>
+      )}
     </div>
   )
 }
