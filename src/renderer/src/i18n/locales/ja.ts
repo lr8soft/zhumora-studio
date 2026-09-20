@@ -20,6 +20,7 @@ export default {
     settings: '設定',
     api: 'API サーバー',
     more: 'もっと見る',
+    collapse: '折りたたむ',
     ready: 'サーバー稼働中',
     url: 'API URL（クリックでコピー）',
     downloading: 'llama.cpp ダウンロード中…',
@@ -355,11 +356,7 @@ export default {
     closeBehaviorHint: 'トレイモードでは、server とモデルのダウンロードがバックグラウンドで継続します。',
     about: 'バージョン情報',
     aboutLine1: 'Zhumora Studio v0.1.0 — ローカル LLM スタジオ（llama.cpp server のビジュアルラッパー）',
-    aboutLine2: 'サーバー稼働中は OpenAI 互換エンドポイント（/v1/chat/completions 等）を公開します。URL はサイドバーの下部に表示されます。',
-    uiMode: 'インターフェースモード',
-    uiModeSimple: 'シンプル（初心者向け）',
-    uiModeFull: 'フル（全機能ページを表示）',
-    uiModeHint: 'シンプル：チャット / モデル広場 / 設定 + 「もっと見る」メニュー。フル：キー、使用量など全ページを表示'
+    aboutLine2: 'サーバー稼働中は OpenAI 互換エンドポイント（/v1/chat/completions 等）を公開します。URL はサイドバーの下部に表示されます。'
   },
   onboard: {
     title: 'Zhumora Studio へようこそ',

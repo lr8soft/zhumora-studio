@@ -4,34 +4,25 @@ import { useTranslation } from 'react-i18next'
 
 /**
  * 视图 ID：
- * - 主导航（简洁模式默认）: chat / models / settings
- * - 次级（"更多"菜单 / 完整模式）: api / server / status / runtime / keys / usage
+ * - 主导航: chat / models / settings
+ * - 次级（"更多"折叠区展开后显示）: api / server / status / runtime / keys / usage
  */
 export type ViewId = 'chat' | 'models' | 'settings' | 'api' | 'server' | 'status' | 'runtime' | 'keys' | 'usage'
 
-const NAV_SIMPLE: { id: ViewId; labelKey: string }[] = [
+const NAV_PRIMARY: { id: ViewId; labelKey: string }[] = [
   { id: 'chat', labelKey: 'sidebar.chat' },
   { id: 'models', labelKey: 'sidebar.models' },
   { id: 'settings', labelKey: 'sidebar.settings' }
 ]
 
-const NAV_MORE: { id: ViewId; labelKey: string }[] = [
+// 折叠项：默认收起；点开"更多"就地展开为一级导航项，不再单独高亮"更多"
+const NAV_COLLAPSED: { id: ViewId; labelKey: string }[] = [
   { id: 'api', labelKey: 'sidebar.api' },
-  { id: 'server', labelKey: 'sidebar.server' },
-  { id: 'status', labelKey: 'sidebar.status' },
-  { id: 'runtime', labelKey: 'sidebar.runtime' }
-]
-
-const NAV_FULL: { id: ViewId; labelKey: string }[] = [
-  { id: 'chat', labelKey: 'sidebar.chat' },
-  { id: 'models', labelKey: 'sidebar.models' },
   { id: 'server', labelKey: 'sidebar.server' },
   { id: 'status', labelKey: 'sidebar.status' },
   { id: 'runtime', labelKey: 'sidebar.runtime' },
-  { id: 'api', labelKey: 'sidebar.api' },
   { id: 'keys', labelKey: 'sidebar.keys' },
-  { id: 'usage', labelKey: 'sidebar.usage' },
-  { id: 'settings', labelKey: 'sidebar.settings' }
+  { id: 'usage', labelKey: 'sidebar.usage' }
 ]
 
 export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate: (v: ViewId) => void }) {
@@ -40,12 +31,6 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
   const runtime = useAppStore((s) => s.runtime)
   const settings = useAppStore((s) => s.settings)
   const [moreOpen, setMoreOpen] = useState(false)
-
-  const uiMode = settings?.uiMode ?? 'simple'
-  // 完整模式保留全部入口（含密钥/用量独立页）；简洁模式 = 3 主项 + 更多
-  const primary = uiMode === 'full' ? NAV_FULL : NAV_SIMPLE
-  const moreVisible = uiMode === 'full' ? [] : NAV_MORE
-  const isSecondary = (id: ViewId) => uiMode !== 'full' && (NAV_MORE.some((n) => n.id === id) || id === 'keys' || id === 'usage')
 
   // 用户已指定自定义 llama-server 时，即使自动下载的 runtime 处于 error/detected，
   // 二进制也真正可用（ServerManager 优先用自定义路径），侧栏应显示为就绪而非报错。
@@ -81,6 +66,10 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
     }
   }
 
+  const items: { id: ViewId; labelKey: string }[] = moreOpen
+    ? [...NAV_PRIMARY, ...NAV_COLLAPSED]
+    : NAV_PRIMARY
+
   return (
     <aside className="sidebar">
       <div className="brand">
@@ -91,7 +80,7 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
         </div>
       </div>
       <nav className="side-nav">
-        {primary.map((item) => {
+        {items.map((item) => {
           const dot =
             item.id === 'server' || item.id === 'status' || item.id === 'api'
               ? serverState.state
@@ -121,41 +110,17 @@ export default function Sidebar({ view, onNavigate }: { view: ViewId; onNavigate
             </button>
           )
         })}
-      </nav>
 
-      {/* "更多" 放在滚动 nav 之外：否则 .side-nav 的 overflow:auto 会裁掉弹出的面板 */}
-      {moreVisible.length > 0 && (
-        <div className="side-more-wrap">
-          <div className="side-more">
-            <button
-              className={moreOpen || isSecondary(view) ? 'active' : ''}
-              onClick={() => setMoreOpen((v) => !v)}
-            >
-              <span className="nav-dot" style={{ width: 7, height: 7, borderRadius: '50%', display: 'inline-block' }} />
-              {t('sidebar.more')}
-            </button>
-            {moreOpen && (
-              <>
-                <div className="side-more-backdrop" onClick={() => setMoreOpen(false)} />
-                <div className="side-more-panel">
-                  {moreVisible.map((item) => (
-                    <button
-                      key={item.id}
-                      className={view === item.id ? 'active' : ''}
-                      onClick={() => {
-                        setMoreOpen(false)
-                        onNavigate(item.id)
-                      }}
-                    >
-                      {t(item.labelKey)}
-                    </button>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        </div>
-      )}
+        {/* 折叠开关：收起时显示"更多"，展开时显示"收起"（就地展开，不是下拉） */}
+        <button
+          className="side-more-toggle"
+          onClick={() => setMoreOpen((v) => !v)}
+          aria-expanded={moreOpen}
+        >
+          <span className={`more-caret${moreOpen ? ' open' : ''}`}>▸</span>
+          {moreOpen ? t('sidebar.collapse') : t('sidebar.more')}
+        </button>
+      </nav>
       <div className="side-footer">
         {/* 接口地址（URL）— 点一下复制 */}
         {url && (

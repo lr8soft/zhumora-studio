@@ -41,8 +41,6 @@ export function normalizeSettings(raw: unknown): Settings {
     fontSize: typeof r.fontSize === 'number' && r.fontSize >= 13 && r.fontSize <= 18 ? r.fontSize : 15,
     lang: typeof r.lang === 'string' && (APP_LANGS as string[]).includes(r.lang) ? (r.lang as AppLang) : 'auto',
     closeBehavior: r.closeBehavior === 'quit' ? 'quit' : 'tray',
-    // 默认简洁模式（新手向）；完整模式在设置中切换
-    uiMode: r.uiMode === 'full' ? 'full' : 'simple',
     onboarded: Boolean(r.onboarded)
   }
 }

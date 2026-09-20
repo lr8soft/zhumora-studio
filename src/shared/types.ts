@@ -428,8 +428,6 @@ export interface Settings {
   lang: AppLang
   /** 关闭主窗口时隐藏到托盘，或直接退出整个应用。 */
   closeBehavior: 'tray' | 'quit'
-  /** 界面模式：simple（默认，面向新手的最小导航）/ full（完整导航，含密钥/用量独立页） */
-  uiMode: 'simple' | 'full'
   /** 首启引导是否已完成（未完成时进入全屏引导） */
   onboarded: boolean
 }

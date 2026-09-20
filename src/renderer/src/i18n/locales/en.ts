@@ -20,6 +20,7 @@ export default {
     settings: 'Settings',
     api: 'API Server',
     more: 'More',
+    collapse: 'Collapse',
     ready: 'server running',
     url: 'API URL (click to copy)',
     downloading: 'llama.cpp downloading…',
@@ -356,11 +357,7 @@ export default {
     closeBehaviorHint: 'In tray mode, the server and model downloads keep running in the background.',
     about: 'About',
     aboutLine1: 'Zhumora Studio v0.1.0 — local LLM studio (visual wrapper over llama.cpp server)',
-    aboutLine2: 'When the server runs it exposes an OpenAI-compatible endpoint (/v1/chat/completions etc.). The URL is in the sidebar footer — copy it to connect external apps.',
-    uiMode: 'Interface mode',
-    uiModeSimple: 'Simple (recommended for beginners)',
-    uiModeFull: 'Full (all feature pages)',
-    uiModeHint: 'Simple: Chat / Model Plaza / Settings + a “More” menu. Full: every feature page shown (Keys, Usage, …)'
+    aboutLine2: 'When the server runs it exposes an OpenAI-compatible endpoint (/v1/chat/completions etc.). The URL is in the sidebar footer — copy it to connect external apps.'
   },
   onboard: {
     title: 'Welcome to Zhumora Studio',

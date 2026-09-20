@@ -20,6 +20,7 @@ export default {
     settings: '设置',
     api: 'API 服务',
     more: '更多',
+    collapse: '收起',
     ready: 'server 运行中',
     url: '接口地址（点击复制）',
     downloading: 'llama.cpp 下载中…',
@@ -355,11 +356,7 @@ export default {
     closeBehaviorHint: '托盘模式下，server 和模型下载会在后台继续运行。',
     about: '关于',
     aboutLine1: 'Zhumora Studio v0.1.0 — 本地 LLM 工作室（llama.cpp server 可视化封装）',
-    aboutLine2: 'server 启动后提供 OpenAI 兼容端点（/v1/chat/completions 等），地址见侧边栏底部，可复制给外部应用接入。',
-    uiMode: '界面模式',
-    uiModeSimple: '简洁（推荐新手）',
-    uiModeFull: '完整（全部功能入口）',
-    uiModeHint: '简洁模式：对话 / 模型广场 / 设置 + "更多"菜单；完整模式：显示全部功能页（密钥、用量等）'
+    aboutLine2: 'server 启动后提供 OpenAI 兼容端点（/v1/chat/completions 等），地址见侧边栏底部，可复制给外部应用接入。'
   },
   onboard: {
     title: '欢迎来到 Zhumora Studio',

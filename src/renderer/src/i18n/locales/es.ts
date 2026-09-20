@@ -20,6 +20,7 @@ export default {
     settings: 'Ajustes',
     api: 'Servidor API',
     more: 'Más',
+    collapse: 'Contraer',
     ready: 'servidor en marcha',
     url: 'URL de la API (clic para copiar)',
     downloading: 'Descargando llama.cpp…',
@@ -355,11 +356,7 @@ export default {
     closeBehaviorHint: 'En modo bandeja, el servidor y las descargas continúan en segundo plano.',
     about: 'Acerca de',
     aboutLine1: 'Zhumora Studio v0.1.0 — estudio de LLM local (envoltura visual sobre llama.cpp server)',
-    aboutLine2: 'Con el servidor en marcha expone un endpoint compatible con OpenAI (/v1/chat/completions, etc.). La URL está al pie de la barra lateral: cópiala para conectar apps externas.',
-    uiMode: 'Modo de interfaz',
-    uiModeSimple: 'Simple (recomendado para principiantes)',
-    uiModeFull: 'Completo (todas las páginas de funciones)',
-    uiModeHint: 'Simple: Chat / Plaza / Ajustes + menú “Más”. Completo: todas las páginas (Claves, Uso, …)'
+    aboutLine2: 'Con el servidor en marcha expone un endpoint compatible con OpenAI (/v1/chat/completions, etc.). La URL está al pie de la barra lateral: cópiala para conectar apps externas.'
   },
   onboard: {
     title: 'Bienvenido a Zhumora Studio',
